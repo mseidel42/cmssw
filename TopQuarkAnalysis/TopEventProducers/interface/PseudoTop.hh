@@ -93,13 +93,12 @@ namespace Rivet {
         addProjection(prompt_photons, "Photons");
         
         // Jets
-        VetoedFinalState fsForJets(fs);
-        fsForJets.addVetoOnThisFinalState(dressed_leptons);
-        addProjection(FastJets(fsForJets, FastJets::ANTIKT, _jetR), "Jets");
-        addProjection(FastJets(fsForJets, FastJets::ANTIKT, _jetR, JetAlg::ALL_MUONS, JetAlg::DECAY_INVISIBLES), "NuJets");
+        // Jet-lepton cleaning will be done by deltaR after applying projection
+        addProjection(FastJets(fs, FastJets::ANTIKT, _jetR), "Jets");
+        addProjection(FastJets(fs, FastJets::ANTIKT, _jetR, JetAlg::ALL_MUONS, JetAlg::DECAY_INVISIBLES), "NuJets");
         
         // FatJets
-        addProjection(FastJets(fsForJets, FastJets::ANTIKT, _fatJetR), "FatJets");
+        addProjection(FastJets(fs, FastJets::ANTIKT, _fatJetR), "FatJets");
         
         // Neutrinos
         IdentifiedFinalState neutrinos(fs);
