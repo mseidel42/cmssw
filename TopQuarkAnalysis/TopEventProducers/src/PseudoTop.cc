@@ -38,20 +38,12 @@ void PseudoTop::project(const Event& event) {
 
   Cut jet_cut = (Cuts::abseta < _jetMaxEta) and (Cuts::pT > _jetMinPt*GeV);
   _jets = applyProjection<FastJets>(event, "Jets").jetsByPt(jet_cut);
-  // Remove jets that overlap with a selected lepton
-  _jets.erase(std::remove_if(_jets.begin(), _jets.end(), 
-    [&](Jet jet) { 
-      for (const Particle& lepton : _leptons) {
-        if (deltaR(jet, lepton) < _jetR) return true;
-      } return false; }), _jets.end());
+  for (const Jet& jet : _jets) {
+    if (jet.bTagged()) _bjets.push_back(jet);
+    else               _ljets.push_back(jet);
+  }
   
   _nujets = applyProjection<FastJets>(event, "NuJets").jetsByPt(jet_cut);
-  // Remove jets that overlap with a selected lepton
-  _nujets.erase(std::remove_if(_nujets.begin(), _nujets.end(), 
-    [&](Jet jet) { 
-      for (const Particle& lepton : _leptons) {
-        if (deltaR(jet, lepton) < _jetR) return true;
-      } return false; }), _nujets.end());
   
   Cut fatjet_cut = (Cuts::abseta < _fatJetMaxEta) and (Cuts::pT > _fatJetMinPt*GeV);
   _fatjets = applyProjection<FastJets>(event, "FatJets").jetsByPt(fatjet_cut);
@@ -65,11 +57,6 @@ void PseudoTop::project(const Event& event) {
   // All building blocks are ready. Continue to pseudo-W and pseudo-top combination
 
   if (not _runTopReconstruction) return;
-  
-  for (const Jet& jet : _jets) {
-    if (jet.bTagged()) _bjets.push_back(jet);
-    else               _ljets.push_back(jet);
-  }
   
   if (_bjets.size() < 2) return; // Ignore single top for now
 
