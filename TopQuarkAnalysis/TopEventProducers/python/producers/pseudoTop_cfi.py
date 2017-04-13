@@ -7,6 +7,9 @@ pseudoTop = cms.EDProducer("PseudoTopProducer",
     
     maxEta = cms.double(5.), # HF range. Maximum 6.0 on MiniAOD
     
+    usePromptFinalStates = cms.bool(True), # for leptons, photons, neutrinos
+    excludePromptLeptonsFromJetClustering = cms.bool(True),
+    
     leptonConeSize = cms.double(0.1),
     minLeptonPt = cms.double(15.),
     maxLeptonEta = cms.double(2.5),

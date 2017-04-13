@@ -32,6 +32,9 @@ namespace Rivet {
       PseudoTop(const edm::ParameterSet& pset)
       : FinalState(-MAXDOUBLE, MAXDOUBLE, 0*GeV),
       
+      _usePromptFinalStates(pset.getParameter<bool>("usePromptFinalStates")),
+      _excludePromptLeptonsFromJetClustering(pset.getParameter<bool>("excludePromptLeptonsFromJetClustering")),
+
       _maxEta(pset.getParameter<double>("maxEta")),
       
       _lepR(pset.getParameter<double>("leptonConeSize")),
@@ -73,28 +76,40 @@ namespace Rivet {
         
         // Dressed leptons
         ChargedLeptons charged_leptons(fs);
+        IdentifiedFinalState photons(fs);
+        photons.acceptIdPair(PID::PHOTON);
+        
         PromptFinalState prompt_leptons(charged_leptons);
         prompt_leptons.acceptMuonDecays(true);
         prompt_leptons.acceptTauDecays(true);
-        IdentifiedFinalState photons(fs);
-        photons.acceptIdPair(PID::PHOTON);
-        PromptFinalState dress_photons(photons);
-        dress_photons.acceptMuonDecays(true);
-        dress_photons.acceptTauDecays(true);
-        DressedLeptons dressed_leptons(dress_photons, prompt_leptons, _lepR, lepton_cut, /*cluster*/ true, /*useDecayPhotons*/ true); // useDecayPhotons=true allows for photons with tau ancestor, photons from hadrons are vetoed by the PromptFinalState; will be default DressedLeptons behaviour for Rivet >= 2.5.4
+        PromptFinalState prompt_photons(photons);
+        prompt_photons.acceptMuonDecays(true);
+        prompt_photons.acceptTauDecays(true);
+        
+        // useDecayPhotons=true allows for photons with tau ancestor,
+        // photons from hadrons are vetoed by the PromptFinalState;
+        // will be default DressedLeptons behaviour for Rivet >= 2.5.4
+        DressedLeptons dressed_leptons(prompt_photons, prompt_leptons, _lepR, 
+                       lepton_cut, /*cluster*/ true, /*useDecayPhotons*/ true);
+        if (not _usePromptFinalStates)
+          dressed_leptons = DressedLeptons(photons, charged_leptons, _lepR, 
+                            lepton_cut, /*cluster*/ true, /*useDecayPhotons*/ true);
         addProjection(dressed_leptons, "DressedLeptons");
         
         // Photons
-        // - Not from hadrons and not belonging to dressed leptons
-        // - Final isolation check is left to the user
-        // - Not removed from jet clustering
-        VetoedFinalState prompt_photons(dress_photons);
-        prompt_photons.addVetoOnThisFinalState(dressed_leptons);
-        addProjection(prompt_photons, "Photons");
+        if (_usePromptFinalStates) {
+          // We remove the photons used up for lepton dressing in this case
+          VetoedFinalState vetoed_prompt_photons(prompt_photons);
+          vetoed_prompt_photons.addVetoOnThisFinalState(dressed_leptons);
+          addProjection(vetoed_prompt_photons, "Photons");
+        }
+        else
+          addProjection(photons, "Photons");
         
         // Jets
         VetoedFinalState fsForJets(fs);
-        fsForJets.addVetoOnThisFinalState(dressed_leptons);
+        if (_usePromptFinalStates and _excludePromptLeptonsFromJetClustering)
+          fsForJets.addVetoOnThisFinalState(dressed_leptons);
         addProjection(FastJets(fsForJets, FastJets::ANTIKT, _jetR), "Jets");
         addProjection(FastJets(fsForJets, FastJets::ANTIKT, _jetR, JetAlg::ALL_MUONS, JetAlg::DECAY_INVISIBLES), "NuJets");
         
@@ -104,10 +119,14 @@ namespace Rivet {
         // Neutrinos
         IdentifiedFinalState neutrinos(fs);
         neutrinos.acceptNeutrinos();
-        PromptFinalState prompt_neutrinos(neutrinos);
-        prompt_neutrinos.acceptMuonDecays(true);
-        prompt_neutrinos.acceptTauDecays(true);
-        addProjection(prompt_neutrinos, "PromptNeutrinos");
+        if (_usePromptFinalStates) {
+          PromptFinalState prompt_neutrinos(neutrinos);
+          prompt_neutrinos.acceptMuonDecays(true);
+          prompt_neutrinos.acceptTauDecays(true);
+          addProjection(prompt_neutrinos, "Neutrinos");
+        }
+        else
+          addProjection(neutrinos, "Neutrinos");
         
         // MET
         addProjection(MissingMomentum(fs), "MET");
@@ -157,6 +176,8 @@ namespace Rivet {
       void project(const Event& event) override;
 
     private:
+      bool _usePromptFinalStates, _excludePromptLeptonsFromJetClustering;
+      
       const double _maxEta;
       const double _lepR, _lepMinPt, _lepMaxEta;
       const double _jetR, _jetMinPt, _jetMaxEta;

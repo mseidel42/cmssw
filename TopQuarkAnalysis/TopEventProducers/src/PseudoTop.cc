@@ -48,9 +48,9 @@ void PseudoTop::project(const Event& event) {
   Cut fatjet_cut = (Cuts::abseta < _fatJetMaxEta) and (Cuts::pT > _fatJetMinPt*GeV);
   _fatjets = applyProjection<FastJets>(event, "FatJets").jetsByPt(fatjet_cut);
   
-  _photons = applyProjection<VetoedFinalState>(event, "Photons").particlesByPt();
+  _photons = applyProjection<FinalState>(event, "Photons").particlesByPt();
   
-  _neutrinos = applyProjection<PromptFinalState>(event, "PromptNeutrinos").particlesByPt();
+  _neutrinos = applyProjection<FinalState>(event, "Neutrinos").particlesByPt();
   
   _met = -applyProjection<MissingMomentum>(event, "MET").vectorEt();
 
