@@ -52,7 +52,7 @@ void PseudoTop::project(const Event& event) {
   
   _neutrinos = applyProjection<FinalState>(event, "Neutrinos").particlesByPt();
   
-  _met = -applyProjection<MissingMomentum>(event, "MET").vectorEt();
+  _met = applyProjection<MissingMomentum>(event, "MET").missingMomentum().p3();
 
   // All building blocks are ready. Continue to pseudo-W and pseudo-top combination
 
