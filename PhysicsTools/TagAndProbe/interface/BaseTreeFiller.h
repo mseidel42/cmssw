@@ -28,6 +28,9 @@
 
 #include "SimDataFormats/PileupSummaryInfo/interface/PileupSummaryInfo.h" 
 #include "SimDataFormats/GeneratorProducts/interface/GenEventInfoProduct.h"
+#include "SimDataFormats/GeneratorProducts/interface/LHEEventProduct.h"
+#include "SimDataFormats/GeneratorProducts/interface/GenLumiInfoHeader.h"
+#include "SimDataFormats/GeneratorProducts/interface/LHERunInfoProduct.h"
 
 #include <TTree.h>
 #include <boost/utility.hpp>
@@ -174,16 +177,21 @@ class BaseTreeFiller : boost::noncopyable {
         /// How event weights are defined: 'None' = no weights, 'Fixed' = one value specified in cfg file, 'External' = read weight from the event (as double)
         enum WeightMode { None, Fixed, External };
         WeightMode weightMode_;
+        bool LHEinfo_;
         edm::EDGetTokenT<GenEventInfoProduct> weightSrcToken_;
-	edm::EDGetTokenT<double> PUweightSrcToken_;
-	edm::EDGetTokenT<double> rhoToken_;
+        edm::EDGetTokenT<LHEEventProduct> _LHECollection;
+        edm::EDGetTokenT<GenLumiInfoHeader> _genLumiInfoToken;
+        edm::EDGetTokenT<LHERunInfoProduct> _lheRunInfoToken;
+        edm::EDGetTokenT<reco::GenParticleCollection> genParticlesToken_;
+        edm::EDGetTokenT<double> PUweightSrcToken_;
+        edm::EDGetTokenT<double> rhoToken_;
         edm::EDGetTokenT<reco::VertexCollection> recVtxsToken_;
         edm::EDGetTokenT<reco::BeamSpot> beamSpotToken_;
         edm::EDGetTokenT<reco::CaloMETCollection> metToken_;
         edm::EDGetTokenT<reco::METCollection> tcmetToken_;
         edm::EDGetTokenT<reco::PFMETCollection> pfmetToken_;
-	edm::EDGetTokenT<pat::METCollection>    pfmetTokenMiniAOD_;
-	edm::EDGetTokenT<std::vector<PileupSummaryInfo> > pileupInfoToken_;
+        edm::EDGetTokenT<pat::METCollection>    pfmetTokenMiniAOD_;
+        edm::EDGetTokenT<std::vector<PileupSummaryInfo> > pileupInfoToken_;
 
         /// Ignore exceptions when evaluating variables
         bool ignoreExceptions_;
@@ -204,6 +212,8 @@ class BaseTreeFiller : boost::noncopyable {
         //implementation notice: these two are 'mutable' because we will fill them from a 'const' method
         mutable TTree * tree_;
         mutable float  weight_, PUweight_, totWeight_;
+        mutable float lheWeight_[9];
+        mutable float psWeight_[5];
         mutable uint32_t run_, lumi_, mNPV_;
         mutable uint64_t event_;
         mutable int truePU_;
@@ -211,7 +221,7 @@ class BaseTreeFiller : boost::noncopyable {
         mutable float mPVx_,mPVy_,mPVz_,mBSx_,mBSy_,mBSz_;
 	mutable float rho_;
         mutable float mMET_,mSumET_,mMETSign_,mtcMET_,mtcSumET_,
-	  mtcMETSign_,mpfMET_,mpfSumET_,mpfMETSign_, mpfPhi_;
+	  mtcMETSign_,mpfMET_,mpfSumET_,mpfMETSign_, mpfPhi_, lhe_ht_;
 };
 
 
