@@ -131,12 +131,15 @@ ExternalLHEProducer::ExternalLHEProducer(const edm::ParameterSet& iConfig) :
   outputFile_(iConfig.getParameter<std::string>("outputFile")),
   args_(iConfig.getParameter<std::vector<std::string> >("args")),
   npars_(iConfig.getParameter<uint32_t>("numberOfParameters")),
-  nEvents_(iConfig.getUntrackedParameter<uint32_t>("nEvents")),
+  nEvents_(iConfig.getUntrackedParameter<int>("nEvents")), // -1 -> UINT_MAX-1 for reweighting runs
   storeXML_(iConfig.getUntrackedParameter<bool>("storeXML")),
   generateConcurrently_(iConfig.getUntrackedParameter<bool>("generateConcurrently"))
 {
   if (npars_ != args_.size())
     throw cms::Exception("ExternalLHEProducer") << "Problem with configuration: " << args_.size() << " script arguments given, expected " << npars_;
+  
+  uint32_t eventCap = 10000000;  // UINT_MAX-1 not accepted by Powheg, cap at 10M
+  nEvents_ = std::min(eventCap, nEvents_);
 
   if (iConfig.exists("nPartonMapping")) {
     auto& processMap(iConfig.getParameterSetVector("nPartonMapping"));
@@ -588,7 +591,7 @@ ExternalLHEProducer::fillDescriptions(edm::ConfigurationDescriptions& descriptio
   desc.add<std::string>("outputFile", "myoutput");
   desc.add<std::vector<std::string> >("args");
   desc.add<uint32_t>("numberOfParameters");
-  desc.addUntracked<uint32_t>("nEvents");
+  desc.addUntracked<int>("nEvents");
   desc.addUntracked<bool>("storeXML", false);
   desc.addUntracked<bool>("generateConcurrently", false)
       ->setComment("If true, run the script concurrently in separate processes.");
