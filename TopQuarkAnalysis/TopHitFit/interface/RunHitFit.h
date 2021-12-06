@@ -63,6 +63,8 @@ namespace hitfit{
 
 using std::vector;
 using std::string;
+using std::cout;
+using std::endl;
 
 /**
   @brief Template class of experiment-independent interface to HitFit.
@@ -176,6 +178,11 @@ private:
   METTranslatorBase<AMet>         _METTranslator;
 
   /**
+     Do we have the power of b disrcrimination?
+   */
+  const bool                      _doBDiscr;
+
+  /**
      The internal event, which only contains lepton and missing transverse energy.
    */
   Lepjets_Event                   _event;
@@ -249,11 +256,13 @@ public:
             const string                           default_file,
             double                                 lepw_mass,
             double                                 hadw_mass,
-            double                                 top_mass):
+            double                                 top_mass,
+            bool                                   discr = true):
       _ElectronTranslator(el),
       _MuonTranslator    (mu),
       _JetTranslator     (jet),
       _METTranslator     (met),
+      _doBDiscr          (discr),
       _event             (0,0),
       _Top_Fit(Top_Fit_Args(Defaults_Text(default_file)),lepw_mass,hadw_mass,top_mass)
   {}
@@ -273,8 +282,10 @@ public:
   {
     _event = Lepjets_Event(0,0);
     _jets.clear();
-    _isBJet.clear();
-    _isLJet.clear();
+    if (_doBDiscr) {
+      _isBJet.clear();
+      _isLJet.clear();
+    }
     _Fit_Results.clear();
   }
 
@@ -317,13 +328,14 @@ public:
      @param jet The jet to be added into the internal event.
   */
   void
-  AddJet(const AJet& jet, bool isB, bool isL)
+  AddJet(const AJet& jet, bool isB = false, bool isL = false)
   {
     if (_jets.size() < MAX_HITFIT_JET) {
       _jets.emplace_back(jet);
-      _isBJet.push_back(isB);
-      _isLJet.push_back(isL);
-      //if (fabs(jet.eta())>2.4) std::cout << fabs(jet.eta()) << " " << isB << " " << isL << std::endl;
+      if (_doBDiscr) {
+        _isBJet.push_back(isB);
+        _isLJet.push_back(isL);
+      }
     }
   }
 
@@ -397,7 +409,7 @@ public:
     jet_types[0] = lepb_label;
     jet_types[1] = hadb_label;
     jet_types[2] = hadw1_label;
-    jet_types[3] = hadw1_label;
+    jet_types[3] = hadw1_label; // This is hadw1 on purpose!
 
     if (_Top_Fit.args().do_higgs_flag() and _jets.size() >= MIN_HITFIT_TTH) {
       jet_types[4] = higgs_label;
@@ -410,26 +422,29 @@ public:
     do {
       // Don't fit if the jet types don't match => saves much time.
       bool typeAgreement = true;
-      // Look exactly at the four leading jets.
-      for (size_t ijet = 0; ijet < 4; ++ijet) {
-        int jT = jet_types[ijet];
-        if (jT==hadw1_label) {
-          if (!_isLJet[ijet]) {
-            typeAgreement = false;
-            break;
-          }
-        } else if (jT==hadb_label or jT==lepb_label) {
-          if (!_isBJet[ijet]) {
-            typeAgreement = false;
-            break;
+      // If b-tagging is available, check that the current permutation agrees on flavors. Else: all combinations are looped over.
+      if (_doBDiscr) {
+        for (size_t ijet = 0; ijet < 4; ++ijet) {
+          int jT = jet_types[ijet];
+          if (jT==hadw1_label) {
+            if (!_isLJet[ijet]) {
+              typeAgreement = false;
+              break;
+            }
+          } else if (jT==hadb_label or jT==lepb_label) {
+            if (!_isBJet[ijet]) {
+              typeAgreement = false;
+              break;
+            }
           }
         }
       }
+
       if (typeAgreement) {
         // Variables to be calculated only once per two neutrino solutions.
         double umwhad = 0, umthad = 0, nuz_store = 0;
 
-        // loop over two neutrino solution
+        // loop over two neutrino solutions
         for (int nusol = 0 ; nusol < 2 ; ++nusol) {
           // Copy the event
           Lepjets_Event fev = _event;

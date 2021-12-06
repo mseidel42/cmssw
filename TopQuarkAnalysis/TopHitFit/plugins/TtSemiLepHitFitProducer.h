@@ -73,12 +73,14 @@ class TtSemiLepHitFitProducer : public edm::EDProducer {
 
   /// input tag for b-tagging algorithm
   const string bTagAlgo_;
-  /// switch to tell whether to use b-tagging or not
-  const bool useBTag_;
   /// min value of bTag for a b-jet
   const double minBTagValueBJet_;
   /// max value of bTag for a non-b-jet
   const double maxBTagValueLJet_;
+  /// switch to tell whether to use b-tagging or not
+  const bool useBTag_;
+  /// switch for selecting the two most likely b-jets
+  const bool bestBs_;
 
   /// constraints
   const double mW_;
@@ -121,17 +123,17 @@ TtSemiLepHitFitProducer<LeptonCollection>::TtSemiLepHitFitProducer(const edm::Pa
   maxNJets_                     (cfg.getParameter<int>   ("maxNJets")),
   maxNComb_                     (cfg.getParameter<int>   ("maxNComb")),
   bTagAlgo_                     (cfg.getParameter<string>("bTagAlgo")),
-  useBTag_                      (cfg.getParameter<bool>  ("useBTagging")),
   minBTagValueBJet_  (useBTag_ ? cfg.getParameter<double>("minBDiscBJets")     : 0),
   maxBTagValueLJet_  (useBTag_ ? cfg.getParameter<double>("maxBDiscLightJets") : 1),
+  useBTag_                      (cfg.getParameter<bool>  ("useBTagging")),
+  bestBs_            (useBTag_ && minBTagValueBJet_ < 0 && maxBTagValueLJet_ < 0),
   mW_                (cfg.getParameter<double>("mW")),
   mTop_              (cfg.getParameter<double>("mTop")),
   jetCorrectionLevel_(cfg.getParameter<string>("jetCorrectionLevel")),
   jes_               (cfg.getParameter<double>("jes")),
   jesB_              (cfg.getParameter<double>("jesB")),
 
-  // The following four initializers instantiate the translator between PAT objects
-  // and HitFit objects using the ASCII text files which contains the resolutions.
+  // The following four initializers instantiate the translator between PAT objects and HitFit objects using the ASCII text files which contains the resolutions.
   electronTranslator_(hfElectronResolution_.fullPath()),
   muonTranslator_    (hfMuonResolution_.fullPath()),
   jetTranslator_     (hfUdscJetResolution_.fullPath(), hfBJetResolution_.fullPath(), jetCorrectionLevel_, jes_, jesB_),
@@ -145,7 +147,8 @@ TtSemiLepHitFitProducer<LeptonCollection>::TtSemiLepHitFitProducer(const edm::Pa
                          hfDefault_.fullPath(),
                          mW_,
                          mW_,
-                         mTop_);
+                         mTop_,
+                         useBTag_);
 
   edm::LogVerbatim( "TopHitFit" )
     << "\n"
@@ -238,19 +241,25 @@ void TtSemiLepHitFitProducer<LeptonCollection>::produce(edm::Event& evt, const e
 
   // Add jets into HitFit
   int nJetsFound = 0, nBJetsFound = 0, nLJetsFound = 0;
-  for (unsigned iJet=0; iJet<jets->size() and nJetsFound<maxNJets_; ++iJet) {
+  for (unsigned iJet=0; iJet<jets->size() && nJetsFound<maxNJets_; ++iJet) {
     const auto &jet = jets->at(iJet);
     double jet_abseta = std::abs(jet.eta());
     if (jet.isCaloJet())
       jet_abseta = std::abs(((reco::CaloJet*) jet.originalObject())->detectorP4().eta());
     if (jet_abseta <= maxEtaJet_) {
-      double bTag = jet.bDiscriminator(bTagAlgo_);
-      const bool isB = bTag > minBTagValueBJet_;
-      const bool isL = bTag <= maxBTagValueLJet_;
-      HitFit->AddJet(jet, isB, isL);
+      if (useBTag_) {
+        const double bTag = jet.bDiscriminator(bTagAlgo_);
+        // In the bestBs_ mode, the two leading jets are the best b-jet candidates.
+        const bool isB = bestBs_ ? (nJetsFound < 2) : bTag > minBTagValueBJet_;
+        const bool isL = bestBs_ ? (!isB) : bTag <= maxBTagValueLJet_;
+        HitFit->AddJet(jet, isB, isL);
+        if (isB) ++nBJetsFound;
+        if (isL) ++nLJetsFound;
+      } else {
+        // With no b-tagging, we are less elaborate and use more brute force.
+        HitFit->AddJet(jet);
+      }
       ++nJetsFound;
-      if (isB) ++nBJetsFound;
-      if (isL) ++nLJetsFound;
     } else {
       std::cout << "Issues with jet eta. " << jet_abseta << " v. max. " << maxEtaJet_ << std::endl;
       nJetsFound = -1;
@@ -265,7 +274,7 @@ void TtSemiLepHitFitProducer<LeptonCollection>::produce(edm::Event& evt, const e
   // Run the kinematic fit and get how many permutations are possible
   // in the fit
   std::list<FitResult> FitResultList;
-  if (foundLepton and !mets->empty() and nJetsFound>=nPartons and nBJetsFound>=2 and nLJetsFound>=2) {
+  if (foundLepton && !mets->empty() && nJetsFound>=nPartons && (!useBTag_ || (nBJetsFound>=2 && nLJetsFound>=2))) {
     // Add missing transverse energy into HitFit
     HitFit->SetMet((*mets)[0]);
 
