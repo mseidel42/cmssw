@@ -39,7 +39,6 @@
 #include "TopQuarkAnalysis/TopHitFit/interface/Lepjets_Event.h"
 #include "TopQuarkAnalysis/TopHitFit/interface/Top_Decaykin.h"
 #include "TopQuarkAnalysis/TopHitFit/interface/Defaults.h"
-#include "TopQuarkAnalysis/TopHitFit/interface/Fit_Results.h"
 #include "TopQuarkAnalysis/TopHitFit/interface/fourvec.h"
 #include <iostream>
 #include <algorithm>
