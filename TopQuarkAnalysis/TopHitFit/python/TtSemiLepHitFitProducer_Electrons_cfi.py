@@ -40,10 +40,13 @@ hitFitTtSemiLepEvent = cms.EDProducer("TtSemiLepHitFitProducerElectron",
     
     # ------------------------------------------------
     # specify jet correction level as, Uncorrected, L1Offset, L2Relative, L3Absolute, L4Emf,
-    # L5Hadron, L6UE, L7Parton, a flavor specification will be added automatically, when
-    # chosen
+    # L5Hadron, L6UE, L7Parton. This is currently only used for debugging. The jet collection
+    # should be "ready" when it arrives here.
     # ------------------------------------------------
     jetCorrectionLevel = cms.string("L3Absolute"),
+
+    # ------------------------------------------------
+    # check that the jet collection behaves as expected, including e.g. the JEC level.
+    # ------------------------------------------------
+    runJetTests = cms.bool(True),
 )
-
-

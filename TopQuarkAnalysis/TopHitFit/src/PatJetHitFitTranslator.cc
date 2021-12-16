@@ -29,29 +29,11 @@ JetTranslatorBase<pat::Jet>::JetTranslatorBase()
   string resolution_filename = CMSSW_BASE + string("/src/TopQuarkAnalysis/PatHitFit/data/exampleJetResolution.txt");
   udscResolution_ = EtaDepResolution(resolution_filename);
   bResolution_    = EtaDepResolution(resolution_filename);
-  jetCorrectionLevel_ = "L7Parton";
 } // JetTranslatorBase<pat::Jet>::JetTranslatorBase()
 
 
 template<>
 JetTranslatorBase<pat::Jet>::JetTranslatorBase(const string& udscFile, const string& bFile)
-{
-  string CMSSW_BASE(getenv("CMSSW_BASE"));
-
-  string udscResolution_filename = udscFile;
-  if (udscFile.empty()) udscResolution_filename = CMSSW_BASE + string("/src/TopQuarkAnalysis/PatHitFit/data/exampleJetResolution.txt");
-
-  string bResolution_filename = bFile;
-  if (bFile.empty()) bResolution_filename = CMSSW_BASE + string("/src/TopQuarkAnalysis/PatHitFit/data/exampleJetResolution.txt");
-
-  udscResolution_ = EtaDepResolution(udscResolution_filename);
-  bResolution_    = EtaDepResolution(bResolution_filename);
-  jetCorrectionLevel_ = "L7Parton";
-} // JetTranslatorBase<pat::Jet>::JetTranslatorBase(const string& ifile)
-
-
-template<>
-JetTranslatorBase<pat::Jet>::JetTranslatorBase(const string& udscFile, const string& bFile, const string& jetCorrectionLevel)
 {
   string CMSSW_BASE(getenv("CMSSW_BASE"));
 
@@ -63,7 +45,6 @@ JetTranslatorBase<pat::Jet>::JetTranslatorBase(const string& udscFile, const str
 
   udscResolution_ = EtaDepResolution(udscResolution_filename);
   bResolution_    = EtaDepResolution(bResolution_filename);
-  jetCorrectionLevel_ = jetCorrectionLevel;
 } // JetTranslatorBase<pat::Jet>::JetTranslatorBase(const string& ifile)
 
 
@@ -77,21 +58,8 @@ template<>
 Lepjets_Event_Jet
 JetTranslatorBase<pat::Jet>::operator()(const pat::Jet& jet, int type /*= hitfit::unknown_label */)
 {
-  // Default: jet.isPFJet(), otherwise the user must edit this code to show she/he knows what they are doing.
-  // Automatic swithcing is quite dangerous, as the user might not understand what they are doing.
-  if (!jet.isPFJet()) {
-    cout << "Caution: it is currently expected that PFJets are used in the kinematic fit!" << endl;
-    if (jet.isCaloJet()) {
-      cout << "It seems that Calo jets are used. There are instructions in the PatJetHitFitTranslator file for proceeding." << endl;
-      // Instead of jet.eta(), one should use: static_cast<const reco::CaloJet*>(jet.originalObject())->detectorP4().eta()
-    } else {
-      cout << "An unknown jet type was encountered! Is this PUPPI?" << endl;
-    }
-    cout << "Please visit TopQuarkAnalysis/TopHitFit/src/PatJetHitFitTranslator.cc and make the necessary edits. Exiting!" << endl;
-    assert(0);
-  }
-  
   const bool bCase = type == hitfit::hadb_label || type == hitfit::lepb_label || type == hitfit::higgs_label;
+  // If Calo jet usage is resurrected: jet->isCaloJet() ? ((reco::CaloJet*) jet->originalObject())->detectorP4().eta()
   const double jet_eta = jet.eta();
 
   Vector_Resolution jet_resolution = bCase ? bResolution_.GetResolution(jet_eta) : udscResolution_.GetResolution(jet_eta);

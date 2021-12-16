@@ -92,6 +92,8 @@ class TtSemiLepHitFitProducer : public edm::EDProducer {
   /// jet correction level
   const string jetCorrectionLevel_;
 
+  bool firstRun_;
+
   const double probEpsilon_ = 1e-10;
 
   /*
@@ -143,11 +145,12 @@ TtSemiLepHitFitProducer<LeptonCollection>::TtSemiLepHitFitProducer(const edm::Pa
   mW_                (cfg.getParameter<double>("mW")),
   mTop_              (cfg.getParameter<double>("mTop")),
   jetCorrectionLevel_(cfg.getParameter<string>("jetCorrectionLevel")),
+  firstRun_          (cfg.getParameter<bool>  ("runJetTests")),
 
   // The following four initializers instantiate the translator between PAT objects and HitFit objects using the ASCII text files which contains the resolutions.
   electronTranslator_(hfElectronResolution_.fullPath()),
   muonTranslator_    (hfMuonResolution_.fullPath()),
-  jetTranslator_     (hfUdscJetResolution_.fullPath(), hfBJetResolution_.fullPath(), jetCorrectionLevel_),
+  jetTranslator_     (hfUdscJetResolution_.fullPath(), hfBJetResolution_.fullPath()),
   metTranslator_     (hfMETResolution_.fullPath())
 {
   // Create an instance of RunHitFit and initialize it.
@@ -255,7 +258,8 @@ int TtSemiLepHitFitProducer<LeptonCollection>::runHitFit(std::list<FitResult> &F
     // Allow skipping a certain jets
     if (iJet == skipIdx || iJet == skipIdx2) continue;
     const auto &jet = jets->at(iJet);
-    const double jet_abseta = std::abs(jet.isCaloJet() ? ((reco::CaloJet*) jet.originalObject())->detectorP4().eta() : jet.eta());
+    const double jet_abseta = std::abs(jet.eta());
+    // If Calo jet usage is resurrected: jet.isCaloJet() ? ((reco::CaloJet*) jet.originalObject())->detectorP4().eta() 
     // Eta sanity check: the jets should already be sanitized
     if (jet_abseta <= 5.2) {
       if (useBTag_) {
@@ -385,6 +389,61 @@ void TtSemiLepHitFitProducer<LeptonCollection>::produce(edm::Event& evt, const e
 
   edm::Handle<LeptonCollection> leps;
   evt.getByToken(lepsToken_, leps);
+
+  // We run a bunch of tests for the delivered jets at the first run.
+  if (firstRun_ && jets->size() > 0) {
+    cout << endl << endl << "##################################" << endl;
+    cout << "Testing the jets within HitFit... If any errors occur, start by checking at ";
+    cout << "TopQuarkAnalysis/TopHitFit/plugins/TtSemiLepHitFitProducer.h!" << endl;
+    for (size_t iJet = 0; iJet < jets->size(); ++iJet) {
+      const auto &jet = jets->at(iJet);
+      // Default: jet.isPFJet(), otherwise the user must edit this code to show she/he knows what they are doing.
+      // Automatic swithcing is quite dangerous, as the user might not understand what they are doing.
+      if (!jet.isPFJet()) {
+        cout << "Caution: it is currently expected that PFJets are used in the kinematic fit!" << endl;
+        if (jet.isCaloJet()) {
+          cout << "It seems that Calo jets are used. Please visit TopQuarkAnalysis/TopHitFit/src/PatJetHitFitTranslator.cc";
+          cout << " and make the necessary edits, if you really want to proceed. Exiting!" << endl;
+          // One needs to change the eta value from jet.eta() to static_cast<const reco::CaloJet*>(jet.originalObject())->detectorP4().eta().
+          // This is done within this file, and in PatJetHitFitTranslator. The usage of CaloJets in a precision measurement is unexpected
+          // currently, and the feature is disabled as it poses more a threat for bugs than any positive outcomes.
+          assert(0);
+        } else {
+          cout << "An unknown jet type was encountered! Is this PUPPI? Check if this affects HitFit." << endl;
+          // One should probably check PatJetHitFitTranslator also in this case.
+        }
+      }
+      // Check that the jet correction lavel is the same as given.
+      if (jetCorrectionLevel_ != "") {
+        auto sets = jet.availableJECSets();
+        if (sets.size() < 1) {
+          cout << "Maximally one JEC set expected, found " << sets.size() << "; please check:" << endl;
+          for (auto &set : sets) cout << set << " ";
+          cout << endl << "Exiting!" << endl;
+          assert(0);
+        } else if (sets.size() > 1) {
+          cout << "Exotic: more than one JEC set found " << sets.size() << endl;
+        }
+        auto lvls = jet.availableJECLevels();
+        if (lvls.size() < 2) {
+          cout << "Expected at least a couple levels of JEC, please check:" << endl;
+          for (auto &lvl : lvls) cout << lvl << " ";
+          cout << endl << "Exiting!" << endl;
+          assert(0);
+        }
+        if (jet.currentJECLevel() != jetCorrectionLevel_) {
+          cout << "The JEC level in the jet collection " << jet.currentJECLevel();
+          cout << " disagrees with the requested one, " << jetCorrectionLevel_ << ", please check! Exiting!" << endl;
+          assert(0);
+        }
+      }
+    }
+    cout << "Jet tests performed on " << jets->size() << " jets OK!" << endl;
+    cout << "##################################" << endl << endl;
+    firstRun_ = false;
+  }
+  
+
 
   // -----------------------------------------------------
   // skip events with no appropriate lepton candidate in
