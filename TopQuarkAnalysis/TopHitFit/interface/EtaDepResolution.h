@@ -102,7 +102,7 @@ private:
        An iterator (pointer) to the corresponding \f$\eta\f$-dependent
        resolution element.
      */
-    std::vector<EtaDepResElement>::const_iterator FindResolution(double& eta) const;
+    std::vector<EtaDepResElement>::const_iterator FindResolution(const double& eta) const;
 
 public:
 
@@ -187,7 +187,7 @@ public:
        The corresponding resolution if the input \f$\eta\f$ value is valid.
        Throw a runtime error if the \f$\eta\f$ value is invalid.
      */
-    Vector_Resolution operator () (double& eta);
+    Vector_Resolution operator () (const double& eta);
 
     /**
        @brief Return the corresponding resolution for a value of \f$\eta\f$.
@@ -196,7 +196,7 @@ public:
        The corresponding resolution if the input \f$\eta\f$ value is valid.
        Throw a runtime error if the \f$\eta\f$ value is invalid.
      */
-    Vector_Resolution GetResolution(double& eta) const;
+    Vector_Resolution GetResolution(const double& eta) const;
 
 
     /**
@@ -207,7 +207,7 @@ public:
        The corresponding element if the input \f$\eta\f$ value is valid.
        Throw a runtime error if the \f$\eta\f$ value is invalid.
      */
-    EtaDepResElement  GetEtaDepResElement(double& eta) const;
+    EtaDepResElement  GetEtaDepResElement(const double& eta) const;
 
     /**
        @brief Access the internal list of \f$\eta\f$-dependent resolution
