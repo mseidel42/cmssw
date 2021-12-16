@@ -16,9 +16,11 @@
 #include <TopQuarkAnalysis/TopHitFit/interface/JetTranslatorBase.h>
 #include <DataFormats/PatCandidates/interface/Jet.h>
 
-namespace hitfit {
-
 using std::string;
+using std::cout;
+using std::endl;
+
+namespace hitfit {
 
 template<>
 JetTranslatorBase<pat::Jet>::JetTranslatorBase()
@@ -28,8 +30,6 @@ JetTranslatorBase<pat::Jet>::JetTranslatorBase()
   udscResolution_ = EtaDepResolution(resolution_filename);
   bResolution_    = EtaDepResolution(resolution_filename);
   jetCorrectionLevel_ = "L7Parton";
-  jes_            = 1.0;
-  jesB_           = 1.0;
 } // JetTranslatorBase<pat::Jet>::JetTranslatorBase()
 
 
@@ -47,14 +47,11 @@ JetTranslatorBase<pat::Jet>::JetTranslatorBase(const string& udscFile, const str
   udscResolution_ = EtaDepResolution(udscResolution_filename);
   bResolution_    = EtaDepResolution(bResolution_filename);
   jetCorrectionLevel_ = "L7Parton";
-  jes_            = 1.0;
-  jesB_           = 1.0;
 } // JetTranslatorBase<pat::Jet>::JetTranslatorBase(const string& ifile)
 
 
 template<>
-JetTranslatorBase<pat::Jet>::JetTranslatorBase(const string& udscFile, const string& bFile, const string& jetCorrectionLevel,
-                                               double jes, double jesB)
+JetTranslatorBase<pat::Jet>::JetTranslatorBase(const string& udscFile, const string& bFile, const string& jetCorrectionLevel)
 {
   string CMSSW_BASE(getenv("CMSSW_BASE"));
 
@@ -67,8 +64,6 @@ JetTranslatorBase<pat::Jet>::JetTranslatorBase(const string& udscFile, const str
   udscResolution_ = EtaDepResolution(udscResolution_filename);
   bResolution_    = EtaDepResolution(bResolution_filename);
   jetCorrectionLevel_ = jetCorrectionLevel;
-  jes_            = jes;
-  jesB_           = jesB;
 } // JetTranslatorBase<pat::Jet>::JetTranslatorBase(const string& ifile)
 
 
@@ -82,26 +77,29 @@ template<>
 Lepjets_Event_Jet
 JetTranslatorBase<pat::Jet>::operator()(const pat::Jet& jet, int type /*= hitfit::unknown_label */)
 {
-  Fourvec p;
-
-  double jet_eta = jet.eta();
-
-  //if (jet.isPFJet()) do nothing at the moment!
-  if (jet.isCaloJet()) jet_eta = static_cast<const reco::CaloJet*>(jet.originalObject())->detectorP4().eta();
-
-  Vector_Resolution jet_resolution;
-
-  if (type == hitfit::hadb_label || type == hitfit::lepb_label || type == hitfit::higgs_label) {
-    jet_resolution = bResolution_.GetResolution(jet_eta);
-    pat::Jet bPartonCorrJet(jet.correctedJet(jetCorrectionLevel_,"BOTTOM"));
-    bPartonCorrJet.scaleEnergy(jesB_);
-    p = Fourvec(bPartonCorrJet.px(),bPartonCorrJet.py(),bPartonCorrJet.pz(),bPartonCorrJet.energy());
-  } else {
-    jet_resolution = udscResolution_.GetResolution(jet_eta);
-    pat::Jet udsPartonCorrJet(jet.correctedJet(jetCorrectionLevel_,"UDS"));
-    udsPartonCorrJet.scaleEnergy(jes_);
-    p = Fourvec(udsPartonCorrJet.px(),udsPartonCorrJet.py(),udsPartonCorrJet.pz(),udsPartonCorrJet.energy());
+  // Default: jet.isPFJet(), otherwise the user must edit this code to show she/he knows what they are doing.
+  // Automatic swithcing is quite dangerous, as the user might not understand what they are doing.
+  if (!jet.isPFJet()) {
+    cout << "Caution: it is currently expected that PFJets are used in the kinematic fit!" << endl;
+    if (jet.isCaloJet()) {
+      cout << "It seems that Calo jets are used. There are instructions in the PatJetHitFitTranslator file for proceeding." << endl;
+      // Instead of jet.eta(), one should use: static_cast<const reco::CaloJet*>(jet.originalObject())->detectorP4().eta()
+    } else {
+      cout << "An unknown jet type was encountered! Is this PUPPI?" << endl;
+    }
+    cout << "Please visit TopQuarkAnalysis/TopHitFit/src/PatJetHitFitTranslator.cc and make the necessary edits. Exiting!" << endl;
+    assert(0);
   }
+  
+  const bool bCase = type == hitfit::hadb_label || type == hitfit::lepb_label || type == hitfit::higgs_label;
+  const double jet_eta = jet.eta();
+
+  Vector_Resolution jet_resolution = bCase ? bResolution_.GetResolution(jet_eta) : udscResolution_.GetResolution(jet_eta);
+  
+  // In the past, flavor-tags have been used in the higher-level JECs.
+  // This is not done anymore, and the feature has been disabled, but one could resurrect it e.g. by:
+  // pat::Jet partonCorrJet(jet.correctedJet(jetCorrectionLevel_, bCase ? "BOTTOM" : "UDS"));
+  const Fourvec p(jet.px(),jet.py(),jet.pz(),jet.energy());
 
   return Lepjets_Event_Jet(p, type, jet_resolution);
 } // Lepjets_Event_Jet JetTranslatorBase<pat::Jet>::operator()(const pat::Jet& j,int type)

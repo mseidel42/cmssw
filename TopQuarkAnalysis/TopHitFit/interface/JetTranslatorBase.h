@@ -68,14 +68,8 @@ namespace hitfit{
        resolution for \f$b\f$ jets.
 
        @param jetCorrectionLevel The jet correction level.
-
-       @param jes The jet energy scale.
-
-       @param jesB The b-jet energy scale.
-
      */
-    JetTranslatorBase(const std::string& udscFile, const std::string& bFile, const std::string& jetCorrectionLevel,
-                      double jes, double jesB);
+    JetTranslatorBase(const std::string& udscFile, const std::string& bFile, const std::string& jetCorrectionLevel);
 
     /**
        @brief Destructor.
@@ -130,16 +124,6 @@ namespace hitfit{
        @brief The jet correction level.
      */
     std::string jetCorrectionLevel_;
-
-    /**
-       @brief The jet energy scale.
-     */
-    double jes_;
-
-    /**
-       @brief The b-jet energy scale.
-     */
-    double jesB_;
   };
 } // namespace hitfit
 

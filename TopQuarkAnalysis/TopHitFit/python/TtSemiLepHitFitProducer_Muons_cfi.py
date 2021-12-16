@@ -44,12 +44,5 @@ hitFitTtSemiLepEvent = cms.EDProducer("TtSemiLepHitFitProducerMuon",
   # chosen
   # ------------------------------------------------
   jetCorrectionLevel = cms.string("L3Absolute"),
-
-  # ------------------------------------------------
-  # rescale jets
-  # ------------------------------------------------
-  jes  = cms.double(1.0),
-  jesB = cms.double(1.0),
 )
-
 

@@ -92,10 +92,6 @@ class TtSemiLepHitFitProducer : public edm::EDProducer {
   /// jet correction level
   const string jetCorrectionLevel_;
 
-  /// jet energy scale
-  const double jes_;
-  const double jesB_;
-
   const double probEpsilon_ = 1e-10;
 
   /*
@@ -147,13 +143,11 @@ TtSemiLepHitFitProducer<LeptonCollection>::TtSemiLepHitFitProducer(const edm::Pa
   mW_                (cfg.getParameter<double>("mW")),
   mTop_              (cfg.getParameter<double>("mTop")),
   jetCorrectionLevel_(cfg.getParameter<string>("jetCorrectionLevel")),
-  jes_               (cfg.getParameter<double>("jes")),
-  jesB_              (cfg.getParameter<double>("jesB")),
 
   // The following four initializers instantiate the translator between PAT objects and HitFit objects using the ASCII text files which contains the resolutions.
   electronTranslator_(hfElectronResolution_.fullPath()),
   muonTranslator_    (hfMuonResolution_.fullPath()),
-  jetTranslator_     (hfUdscJetResolution_.fullPath(), hfBJetResolution_.fullPath(), jetCorrectionLevel_, jes_, jesB_),
+  jetTranslator_     (hfUdscJetResolution_.fullPath(), hfBJetResolution_.fullPath(), jetCorrectionLevel_),
   metTranslator_     (hfMETResolution_.fullPath())
 {
   // Create an instance of RunHitFit and initialize it.
