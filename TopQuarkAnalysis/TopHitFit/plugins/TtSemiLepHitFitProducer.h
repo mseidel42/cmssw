@@ -458,6 +458,8 @@ void TtSemiLepHitFitProducer<LeptonCollection>::produce(edm::Event& evt, const e
     // Jets 0, 1, 2, 3: 4/24 (b-tagging/not)
     *pJetsConsidered = runHitFit(FitResultList, jets, mets, leps);
     if (fiveJets_ && jets->size() > 4) {
+      // We know now that there are at least 5 good jets
+      *pJetsConsidered = 5;
       // Jets 0, 1, 2, 4: 4/24 (b-tagging/not)
       runHitFit(FitResultList, jets, mets, leps, 3);
       // Jets 0, 1, 3, 4: 4/24 (b-tagging/not)
@@ -469,6 +471,8 @@ void TtSemiLepHitFitProducer<LeptonCollection>::produce(edm::Event& evt, const e
         runHitFit(FitResultList, jets, mets, leps, 0);
       }
       if (sixJets_ && jets->size() > 5) {
+        // We know now that there are at least 6 good jets
+        *pJetsConsidered = 6;
         // Jets 0, 1, 2, 5: 4/24 (b-tagging/not)
         runHitFit(FitResultList, jets, mets, leps, 3, 4);
         // Jets 0, 1, 3, 4: 4/24 (b-tagging/not)
