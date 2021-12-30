@@ -309,7 +309,7 @@ public:
         }
 
         double dPt = jet.pt() - genJet->pt();
-        smearFactor = 1 + m_nomVar * (jer_sf - 1.) * dPt / jet.pt();
+        smearFactor += m_nomVar * (jer_sf - 1.) * dPt / jet.pt();
       } else if (jer_sf > 1) {
         /*
                      * Case 2: we don't have a gen jet. Smear jet pt using a random gaussian variation
@@ -321,7 +321,7 @@ public:
         }
 
         std::normal_distribution<> d(0, sigma);
-        smearFactor = 1. + m_nomVar * d(m_random_generator);
+        smearFactor += m_nomVar * d(m_random_generator);
       } else if (m_debug) {
         std::cout << "Impossible to smear this jet" << std::endl;
       }
