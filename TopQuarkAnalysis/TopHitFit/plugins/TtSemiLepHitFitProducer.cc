@@ -1,13 +1,15 @@
-#ifndef TtSemiLepHitFitProducer_h
-#define TtSemiLepHitFitProducer_h
-
 #include "FWCore/Framework/interface/Event.h"
 #include "FWCore/Framework/interface/EDProducer.h"
+#include "FWCore/Framework/interface/MakerMacros.h"
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
+#include "FWCore/ParameterSet/interface/ConfigurationDescriptions.h"
+#include "FWCore/ParameterSet/interface/ParameterSetDescription.h"
 
 #include "PhysicsTools/JetMCUtils/interface/combination.h"
 #include "AnalysisDataFormats/TopObjects/interface/TtSemiLepEvtPartons.h"
 #include "DataFormats/PatCandidates/interface/Lepton.h"
+#include "DataFormats/PatCandidates/interface/Muon.h"
+#include "DataFormats/PatCandidates/interface/Electron.h"
 #include "AnalysisDataFormats/TopObjects/interface/TtSemiEvtSolution.h"
 
 #include "TopQuarkAnalysis/TopHitFit/interface/RunHitFit.h"
@@ -20,8 +22,12 @@ using std::vector;
 using std::endl;
 using std::cout;
 
-template <typename LeptonCollection>
+template <typename Lepton>
 class TtSemiLepHitFitProducer : public edm::EDProducer {
+  typedef edm::View<pat::Jet> JetCollection;
+  typedef edm::View<pat::MET> METCollection;
+  typedef edm::View<Lepton> LepCollection;
+  typedef vector<pat::Particle> ParticleCollection;
 
  public:
 
@@ -32,9 +38,9 @@ class TtSemiLepHitFitProducer : public edm::EDProducer {
   // produce
   void produce(edm::Event&, const edm::EventSetup&) override;
 
-  edm::EDGetTokenT<vector<pat::Jet> > jetsToken_;
-  edm::EDGetTokenT<LeptonCollection>  lepsToken_;
-  edm::EDGetTokenT<vector<pat::MET> > metsToken_;
+  edm::EDGetTokenT<JetCollection> jetsToken_;
+  edm::EDGetTokenT<METCollection> metsToken_;
+  edm::EDGetTokenT<LepCollection> lepsToken_;
 
   struct FitResult {
     int Status;
@@ -54,7 +60,7 @@ class TtSemiLepHitFitProducer : public edm::EDProducer {
     bool operator< (const FitResult& rhs) { return Chi2 < rhs.Chi2; };
   };
 
-  int runHitFit(std::list<FitResult> &FitResultList, edm::Handle<vector<pat::Jet> > &jets, edm::Handle<vector<pat::MET> > &mets, edm::Handle<LeptonCollection> &leps, size_t skipIdx = 4, size_t skipIdx2 = 5);
+  int runHitFit(std::list<FitResult> &FitResultList, edm::Handle<JetCollection> &jets, edm::Handle<METCollection> &mets, edm::Handle<LepCollection> &leps, size_t skipIdx = 4, size_t skipIdx2 = 5);
 
   typedef hitfit::RunHitFit<pat::Electron,pat::Muon,pat::Jet,pat::MET> PatHitFit;
 
@@ -116,21 +122,87 @@ class TtSemiLepHitFitProducer : public edm::EDProducer {
   hitfit::METTranslatorBase<pat::MET>         metTranslator_;
 
   PatHitFit* HitFit;
+
+ public:
+  static void fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
+    // hitFitTtSemiLepEvent
+    edm::ParameterSetDescription desc;
+
+    desc.add<edm::InputTag>("jets", edm::InputTag("selectedPatJets"));
+    desc.add<edm::InputTag>("mets", edm::InputTag("patMETs"));
+    // ------------------------------------------------
+    // maximum number of jets to be considered in the jet combinatorics
+    // (has to be >= 4, can be set to -1 if you want to take all)
+    // ------------------------------------------------
+    desc.add<int>("maxNJets", 4);
+    // ------------------------------------------------
+    // maximum number of jet combinations finally written into the event, starting from the "best"
+    // (has to be >= 1, can be set to -1 if you want to take all)
+    // ------------------------------------------------
+    desc.add<int>("maxNComb", 1);
+    // ------------------------------------------------
+    // option to use b-tagging
+    // ------------------------------------------------
+    desc.add<string>("bTagAlgo", "")->setComment("The user should absolutely provide this.");
+    // Usually the following two are the same, but we allow them to be different
+    desc.add<double>("minBDiscBJets", 0.0);
+    desc.add<double>("maxBDiscLightJets", 1.0);
+    // Important boolean flags
+    desc.add<bool>("useBTagging", true);
+    desc.add<bool>("useFiveJets", false);
+    desc.add<bool>("useSixJets", false);
+    desc.add<bool>("useBTagEmulation", false);
+    // ------------------------------------------------
+    // set mass values used in the constraints
+    // set mass to 0 for no constraint
+    // ------------------------------------------------    
+    desc.add<double>("mW", 80.4);
+    desc.add<double>("mTop", 0.0);
+    // ------------------------------------------------
+    // specify jet correction level as, Uncorrected, L1Offset, L2Relative, L3Absolute, L4Emf,
+    // L5Hadron, L6UE, L7Parton. This is currently only used for debugging. The jet collection
+    // should be "ready" when it arrives here.
+    // ------------------------------------------------
+    desc.add<string>("jetCorrectionLevel", "L3Absolute");
+    // ------------------------------------------------
+    // check that the jet collection behaves as expected, including e.g. the JEC level.
+    // ------------------------------------------------
+    desc.add<bool>("runJetTests", true);
+    // ------------------------------------------------
+    // resolutions and other configs
+    // ------------------------------------------------
+    desc.add<edm::FileInPath>("hitfitDefault", edm::FileInPath("TopQuarkAnalysis/TopHitFit/data/setting/RunHitFitConfiguration.txt"));
+    desc.add<edm::FileInPath>("hitfitElectronResolution", edm::FileInPath("TopQuarkAnalysis/TopHitFit/data/resolution/tqafElectronResolution.txt"));
+    desc.add<edm::FileInPath>("hitfitMuonResolution", edm::FileInPath("TopQuarkAnalysis/TopHitFit/data/resolution/tqafMuonResolution.txt"));
+    desc.add<edm::FileInPath>("hitfitUdscJetResolution", edm::FileInPath("TopQuarkAnalysis/TopHitFit/data/resolution/tqafUdscJetResolution.txt"));
+    desc.add<edm::FileInPath>("hitfitBJetResolution", edm::FileInPath("TopQuarkAnalysis/TopHitFit/data/resolution/tqafBJetResolution.txt"));
+    desc.add<edm::FileInPath>("hitfitMETResolution", edm::FileInPath("TopQuarkAnalysis/TopHitFit/data/resolution/tqafKtResolution.txt"));
+
+    // Only electrons and muons are catered
+    if constexpr (std::is_same<Lepton, pat::Electron>::value) {
+      desc.add<edm::InputTag>("leps", edm::InputTag("selectedPatElectrons"));
+      descriptions.add("hitFitTtSemiLepEventElectrons", desc);
+    }
+    if constexpr (std::is_same<Lepton, pat::Muon>::value) {
+      desc.add<edm::InputTag>("leps", edm::InputTag("selectedPatMuons"));
+      descriptions.add("hitFitTtSemiLepEventMuons", desc);
+    }
+  }
 };
 
-template<typename LeptonCollection>
-TtSemiLepHitFitProducer<LeptonCollection>::TtSemiLepHitFitProducer(const edm::ParameterSet& cfg):
-  jetsToken_               (consumes<vector<pat::Jet> >    (cfg.getParameter<edm::InputTag>("jets"))),
-  lepsToken_               (consumes<LeptonCollection>     (cfg.getParameter<edm::InputTag>("leps"))),
-  metsToken_               (consumes<vector<pat::MET> >    (cfg.getParameter<edm::InputTag>("mets"))),
+template<typename Lepton>
+TtSemiLepHitFitProducer<Lepton>::TtSemiLepHitFitProducer(const edm::ParameterSet& cfg):
+  jetsToken_(consumes<JetCollection>(cfg.getParameter<edm::InputTag>("jets"))),
+  metsToken_(consumes<METCollection>(cfg.getParameter<edm::InputTag>("mets"))),
+  lepsToken_(consumes<LepCollection>(cfg.getParameter<edm::InputTag>("leps"))),
 
   // The following five initializers read the config parameters for the: ASCII text files which contains the physics object resolutions.
-  hfDefault_           (cfg.getUntrackedParameter<edm::FileInPath>(string("hitfitDefault")           , edm::FileInPath(string("TopQuarkAnalysis/TopHitFit/data/setting/RunHitFitConfiguration.txt")))),
-  hfElectronResolution_(cfg.getUntrackedParameter<edm::FileInPath>(string("hitfitElectronResolution"), edm::FileInPath(string("TopQuarkAnalysis/TopHitFit/data/resolution/tqafElectronResolution.txt")))),
-  hfMuonResolution_    (cfg.getUntrackedParameter<edm::FileInPath>(string("hitfitMuonResolution")    , edm::FileInPath(string("TopQuarkAnalysis/TopHitFit/data/resolution/tqafMuonResolution.txt")))),
-  hfUdscJetResolution_ (cfg.getUntrackedParameter<edm::FileInPath>(string("hitfitUdscJetResolution") , edm::FileInPath(string("TopQuarkAnalysis/TopHitFit/data/resolution/tqafUdscJetResolution.txt")))),
-  hfBJetResolution_    (cfg.getUntrackedParameter<edm::FileInPath>(string("hitfitBJetResolution")    , edm::FileInPath(string("TopQuarkAnalysis/TopHitFit/data/resolution/tqafBJetResolution.txt")))),
-  hfMETResolution_     (cfg.getUntrackedParameter<edm::FileInPath>(string("hitfitMETResolution")     , edm::FileInPath(string("TopQuarkAnalysis/TopHitFit/data/resolution/tqafKtResolution.txt")))),
+  hfDefault_           (cfg.getParameter<edm::FileInPath>("hitfitDefault")),
+  hfElectronResolution_(cfg.getParameter<edm::FileInPath>("hitfitElectronResolution")),
+  hfMuonResolution_    (cfg.getParameter<edm::FileInPath>("hitfitMuonResolution")),
+  hfUdscJetResolution_ (cfg.getParameter<edm::FileInPath>("hitfitUdscJetResolution")),
+  hfBJetResolution_    (cfg.getParameter<edm::FileInPath>("hitfitBJetResolution")),
+  hfMETResolution_     (cfg.getParameter<edm::FileInPath>("hitfitMETResolution")),
 
   // Constants
   maxNJets_          (cfg.getParameter<int>   ("maxNJets")),
@@ -138,7 +210,7 @@ TtSemiLepHitFitProducer<LeptonCollection>::TtSemiLepHitFitProducer(const edm::Pa
   bTagAlgo_          (cfg.getParameter<string>("bTagAlgo")),
   minBTagValueBJet_  (cfg.getParameter<double>("minBDiscBJets")),
   maxBTagValueLJet_  (cfg.getParameter<double>("maxBDiscLightJets")),
-  useBTag_           (cfg.getParameter<bool>  ("useBTagging")),
+  useBTag_           (cfg.getParameter<bool>  ("useBTagging") && bTagAlgo_ != ""),
   sixJets_           (cfg.getParameter<bool>  ("useSixJets")),
   fiveJets_          (cfg.getParameter<bool>  ("useFiveJets") || sixJets_),
   bestBs_            (cfg.getParameter<bool>  ("useBTagEmulation")),
@@ -182,8 +254,7 @@ TtSemiLepHitFitProducer<LeptonCollection>::TtSemiLepHitFitProducer(const edm::Pa
     } else {
       cout << "||| Running HitFit in b-tagging mode with limits " << maxBTagValueLJet_ << "/" << minBTagValueBJet_ << " |||" << endl;
       if (minBTagValueBJet_ < maxBTagValueLJet_) {
-        cout << "ERROR!!! Overlapping tags!!!" << endl << endl << endl;
-        assert(0);
+        throw cms::Exception("TtSemiLepHitFitProducer") << "ERROR!!! Overlapping tags!!!";
       }
     }
   } else {
@@ -201,12 +272,12 @@ TtSemiLepHitFitProducer<LeptonCollection>::TtSemiLepHitFitProducer(const edm::Pa
   cout << "||| Probability epsilon for throwing out sub-leading permutations within the chosen " << maxNComb_ << " permutations: " << probEpsilon_ << " |||" << endl;
   cout << endl << endl;
 
-  produces< vector<pat::Particle> >("PartonsHadP");
-  produces< vector<pat::Particle> >("PartonsHadQ");
-  produces< vector<pat::Particle> >("PartonsHadB");
-  produces< vector<pat::Particle> >("PartonsLepB");
-  produces< vector<pat::Particle> >("Leptons");
-  produces< vector<pat::Particle> >("Neutrinos");
+  produces< ParticleCollection >("PartonsHadP");
+  produces< ParticleCollection >("PartonsHadQ");
+  produces< ParticleCollection >("PartonsHadB");
+  produces< ParticleCollection >("PartonsLepB");
+  produces< ParticleCollection >("Leptons");
+  produces< ParticleCollection >("Neutrinos");
 
   produces< vector<vector<int> > >();
   produces< vector<double> >("Chi2");
@@ -219,20 +290,24 @@ TtSemiLepHitFitProducer<LeptonCollection>::TtSemiLepHitFitProducer(const edm::Pa
   produces< int >("Drop2");
 }
 
-template<typename LeptonCollection>
-TtSemiLepHitFitProducer<LeptonCollection>::~TtSemiLepHitFitProducer()
+template<typename Lepton>
+TtSemiLepHitFitProducer<Lepton>::~TtSemiLepHitFitProducer()
 {
   delete HitFit;
 }
 
-template<typename LeptonCollection>
-int TtSemiLepHitFitProducer<LeptonCollection>::runHitFit(std::list<FitResult> &FitResultList, edm::Handle<vector<pat::Jet> > &jets,
-  edm::Handle<vector<pat::MET> > &mets, edm::Handle<LeptonCollection> &leps, size_t skipIdx, size_t skipIdx2) {
+template<typename Lepton>
+int TtSemiLepHitFitProducer<Lepton>::runHitFit(std::list<FitResult> &FitResultList, edm::Handle<JetCollection> &jets,
+  edm::Handle<METCollection> &mets, edm::Handle<LepCollection> &leps, size_t skipIdx, size_t skipIdx2) {
   if (useBTag_) {
     // In this running mode, the two leading jets are reserved for b-jets, and should not be skipped.
-    assert(skipIdx > 1);
+    if (skipIdx <= 1) {
+      throw cms::Exception("TtSemiLepHitFitProducer") << "The B-jets should not be skipped!";
+    }
   }
-  assert(skipIdx < skipIdx2);
+  if (skipIdx >= skipIdx2) {
+    throw cms::Exception("TtSemiLepHitFitProducer") << "Wrong order for skipping indices!";
+  }
   // Clear the internal state
   HitFit->clear();
 
@@ -244,9 +319,8 @@ int TtSemiLepHitFitProducer<LeptonCollection>::runHitFit(std::list<FitResult> &F
       HitFit->AddLepton((*leps)[iLep]);
       foundLepton = true;
     } else {
-      std::cout << "Issues with lepton eta. " << fabs(leps->at(iLep).eta()) << " vs. max. 2.5" << std::endl;
       // Fatal issue: this should not occur, so we make some noise.
-      assert(0);
+      throw cms::Exception("TtSemiLepHitFitProducer") << "Issues with lepton eta. " << fabs(leps->at(iLep).eta()) << " vs. max. 2.5";
     }
     break;
   }
@@ -276,9 +350,8 @@ int TtSemiLepHitFitProducer<LeptonCollection>::runHitFit(std::list<FitResult> &F
       }
       if (++nJetsFound == maxNJets_) break;
     } else {
-      std::cout << "Issues with jet eta. " << jet_abseta << " v. max. 5.2" << std::endl;
       // Fatal issue: this should not occur, so we make some noise.
-      assert(0);
+      throw cms::Exception("TtSemiLepHitFitProducer") << "Issues with jet eta. " << jet_abseta << " v. max. 5.2";
     }
   }
 
@@ -306,9 +379,8 @@ int TtSemiLepHitFitProducer<LeptonCollection>::runHitFit(std::list<FitResult> &F
     const auto &fit = fitProd.ev();
     vector<int> hitCombi(4, -1);
     if (fit.njets() > 4) {
-      cout << "Too many jets in the fit!" << endl;
       // Fatal issue: this should not occur, so we make some noise.
-      assert(0);
+      throw cms::Exception("TtSemiLepHitFitProducer") << "Too many jets in the fit!";
     }
 
     // Get the number of jets and loop over the jets
@@ -363,78 +435,66 @@ int TtSemiLepHitFitProducer<LeptonCollection>::runHitFit(std::list<FitResult> &F
   return nJetsFound;
 }
 
-template<typename LeptonCollection>
-void TtSemiLepHitFitProducer<LeptonCollection>::produce(edm::Event& evt, const edm::EventSetup& setup)
+template<typename Lepton>
+void TtSemiLepHitFitProducer<Lepton>::produce(edm::Event& evt, const edm::EventSetup& setup)
 {
-  std::unique_ptr< vector<pat::Particle> > pPartonsHadP( new vector<pat::Particle> );
-  std::unique_ptr< vector<pat::Particle> > pPartonsHadQ( new vector<pat::Particle> );
-  std::unique_ptr< vector<pat::Particle> > pPartonsHadB( new vector<pat::Particle> );
-  std::unique_ptr< vector<pat::Particle> > pPartonsLepB( new vector<pat::Particle> );
-  std::unique_ptr< vector<pat::Particle> > pLeptons    ( new vector<pat::Particle> );
-  std::unique_ptr< vector<pat::Particle> > pNeutrinos  ( new vector<pat::Particle> );
-
-  std::unique_ptr< vector<vector<int> > > pCombi ( new vector<vector<int> > );
-  std::unique_ptr< vector<double>       > pChi2  ( new vector<double> );
-  std::unique_ptr< vector<double>       > pProb  ( new vector<double> );
-  std::unique_ptr< vector<double>       > pMT    ( new vector<double> );
-  std::unique_ptr< vector<double>       > pSigMT ( new vector<double> );
-  std::unique_ptr< vector<int>          > pStatus( new vector<int> );
-  std::unique_ptr< int > pJetsConsidered( new int );
-
-  edm::Handle<vector<pat::Jet> > jets;
-  evt.getByToken(jetsToken_, jets);
-
-  edm::Handle<vector<pat::MET> > mets;
-  evt.getByToken(metsToken_, mets);
-
-  edm::Handle<LeptonCollection> leps;
-  evt.getByToken(lepsToken_, leps);
+  auto jets = evt.getHandle(jetsToken_);
+  auto mets = evt.getHandle(metsToken_);
+  auto leps = evt.getHandle(lepsToken_);
 
   // We run a bunch of tests for the delivered jets at the first run.
-  if (firstRun_ && jets->size() > 0) {
-    cout << endl << endl << "##################################" << endl;
-    cout << "Testing the jets within HitFit... If any errors occur, start by checking at ";
-    cout << "TopQuarkAnalysis/TopHitFit/plugins/TtSemiLepHitFitProducer.h!" << endl;
-    for (size_t iJet = 0; iJet < jets->size(); ++iJet) {
-      const auto &jet = jets->at(iJet);
-      // Default: jet.isPFJet(), otherwise the user must edit this code to show she/he knows what they are doing.
-      // Automatic swithcing is quite dangerous, as the user might not understand what they are doing.
-      if (!jet.isPFJet()) {
-        cout << "Caution: it is currently expected that PFJets are used in the kinematic fit!" << endl;
-        if (jet.isCaloJet()) {
-          cout << "It seems that Calo jets are used. Please visit TopQuarkAnalysis/TopHitFit/src/PatJetHitFitTranslator.cc";
-          cout << " and make the necessary edits, if you really want to proceed. Exiting!" << endl;
-          // One needs to change the eta value from jet.eta() to static_cast<const reco::CaloJet*>(jet.originalObject())->detectorP4().eta().
-          // This is done within this file, and in PatJetHitFitTranslator. The usage of CaloJets in a precision measurement is unexpected
-          // currently, and the feature is disabled as it poses more a threat for bugs than any positive outcomes.
-          assert(0);
-        } else {
-          cout << "An unknown jet type was encountered! Is this PUPPI? Check if this affects HitFit." << endl;
-          // One should probably check PatJetHitFitTranslator also in this case.
+  if (firstRun_) {
+    if (!jets.isValid()) {
+      throw cms::Exception("TtSemiLepHitFitProducer") << "Faulty jet collection provided!";
+    }
+    if (!mets.isValid()) {
+      throw cms::Exception("TtSemiLepHitFitProducer") << "Faulty MET collection provided!";
+    }
+    if (!leps.isValid()) {
+      throw cms::Exception("TtSemiLepHitFitProducer") << "Faulty lepton collection provided!";
+    }
+    if (jets->size() > 0) {
+      cout << endl << endl << "##################################" << endl;
+      cout << "Testing the jets within HitFit... If any errors occur, start by checking at ";
+      cout << "TopQuarkAnalysis/TopHitFit/plugins/TtSemiLepHitFitProducer.h!" << endl;
+      for (size_t iJet = 0; iJet < jets->size(); ++iJet) {
+        const auto &jet = jets->at(iJet);
+        // Default: jet.isPFJet(), otherwise the user must edit this code to show she/he knows what they are doing.
+        // Automatic swithcing is quite dangerous, as the user might not understand what they are doing.
+        if (!jet.isPFJet()) {
+          cout << "Caution: it is currently expected that PFJets are used in the kinematic fit!" << endl;
+          if (jet.isCaloJet()) {
+            // One needs to change the eta value from jet.eta() to static_cast<const reco::CaloJet*>(jet.originalObject())->detectorP4().eta().
+            // This is done within this file, and in PatJetHitFitTranslator. The usage of CaloJets in a precision measurement is unexpected
+            // currently, and the feature is disabled as it poses more a threat for bugs than any positive outcomes.
+            throw cms::Exception("TtSemiLepHitFitProducer") << "It seems that Calo jets are used. Please visit"
+              << "TopQuarkAnalysis/TopHitFit/src/PatJetHitFitTranslator.cc"
+              << " and make the necessary edits, if you really want to proceed. Exiting!";
+          } else {
+            cout << "An unknown jet type was encountered! Is this PUPPI? Check if this affects HitFit." << endl;
+            // One should probably check PatJetHitFitTranslator also in this case.
+          }
         }
-      }
-      // Check that the jet correction lavel is the same as given.
-      if (jetCorrectionLevel_ != "") {
-        auto sets = jet.availableJECSets();
-        if (sets.size() < 1) {
-          cout << "Maximally one JEC set expected, found " << sets.size() << "; please check:" << endl;
-          for (auto &set : sets) cout << set << " ";
-          cout << endl << "Exiting!" << endl;
-          assert(0);
-        } else if (sets.size() > 1) {
-          cout << "Exotic: more than one JEC set found " << sets.size() << endl;
-        }
-        auto lvls = jet.availableJECLevels();
-        if (lvls.size() < 2) {
-          cout << "Expected at least a couple levels of JEC, please check:" << endl;
-          for (auto &lvl : lvls) cout << lvl << " ";
-          cout << endl << "Exiting!" << endl;
-          assert(0);
-        }
-        if (jet.currentJECLevel() != jetCorrectionLevel_) {
-          cout << "The JEC level in the jet collection " << jet.currentJECLevel();
-          cout << " disagrees with the requested one, " << jetCorrectionLevel_ << ", please check! Exiting!" << endl;
-          assert(0);
+        // Check that the jet correction lavel is the same as given.
+        if (jetCorrectionLevel_ != "") {
+          auto sets = jet.availableJECSets();
+          if (sets.size() < 1) {
+            for (auto &set : sets) cout << set << " ";
+            cout << endl;
+            throw cms::Exception("TtSemiLepHitFitProducer") << "Maximally one JEC set expected, found " << sets.size() << "; please check!";
+          } else if (sets.size() > 1) {
+            cout << "Exotic: more than one JEC set found " << sets.size() << endl;
+          }
+          auto lvls = jet.availableJECLevels();
+          if (lvls.size() < 2) {
+            for (auto &lvl : lvls) cout << lvl << " ";
+            cout << endl;
+            throw cms::Exception("TtSemiLepHitFitProducer") << "Expected at least a couple levels of JEC, please check!";
+          }
+          if (jet.currentJECLevel() != jetCorrectionLevel_) {
+            throw cms::Exception("TtSemiLepHitFitProducer") << "The JEC level in the jet collection " << jet.currentJECLevel()
+              << " disagrees with the requested one, " << jetCorrectionLevel_ << ", please check! Exiting!";
+          }
         }
       }
     }
@@ -442,24 +502,23 @@ void TtSemiLepHitFitProducer<LeptonCollection>::produce(edm::Event& evt, const e
     cout << "##################################" << endl << endl;
     firstRun_ = false;
   }
-  
-
 
   // -----------------------------------------------------
   // skip events with no appropriate lepton candidate in
   // or empty MET or less jets than partons
   // -----------------------------------------------------
   std::list<FitResult> FitResultList;
+  int jetsConsidered = -1;
   // With b-tagging, each four jets produce 4 combinations and without, 24 combinations.
   // Base mode: 4/24 combinations.
   // Five jets: 12/120 combinations.
   // Six jets: 24/360 combinations.
   if (!jets->empty() && !mets->empty() && !leps->empty()) {
     // Jets 0, 1, 2, 3: 4/24 (b-tagging/not)
-    *pJetsConsidered = runHitFit(FitResultList, jets, mets, leps);
+    jetsConsidered = runHitFit(FitResultList, jets, mets, leps);
     if (fiveJets_ && jets->size() > 4) {
       // We know now that there are at least 5 good jets
-      *pJetsConsidered = 5;
+      jetsConsidered = 5;
       // Jets 0, 1, 2, 4: 4/24 (b-tagging/not)
       runHitFit(FitResultList, jets, mets, leps, 3);
       // Jets 0, 1, 3, 4: 4/24 (b-tagging/not)
@@ -472,7 +531,7 @@ void TtSemiLepHitFitProducer<LeptonCollection>::produce(edm::Event& evt, const e
       }
       if (sixJets_ && jets->size() > 5) {
         // We know now that there are at least 6 good jets
-        *pJetsConsidered = 6;
+        jetsConsidered = 6;
         // Jets 0, 1, 2, 5: 4/24 (b-tagging/not)
         runHitFit(FitResultList, jets, mets, leps, 3, 4);
         // Jets 0, 1, 3, 4: 4/24 (b-tagging/not)
@@ -503,6 +562,20 @@ void TtSemiLepHitFitProducer<LeptonCollection>::produce(edm::Event& evt, const e
   // feed out result
   // starting with the JetComb having the smallest chi2
   // -----------------------------------------------------
+  auto pPartonsHadP = std::make_unique<ParticleCollection>();
+  auto pPartonsHadQ = std::make_unique<ParticleCollection>();
+  auto pPartonsHadB = std::make_unique<ParticleCollection>();
+  auto pPartonsLepB = std::make_unique<ParticleCollection>();
+  auto pLeptons     = std::make_unique<ParticleCollection>();
+  auto pNeutrinos   = std::make_unique<ParticleCollection>();
+
+  auto pCombi  = std::make_unique<vector<vector<int> > >();
+  auto pChi2   = std::make_unique<vector<double> >();
+  auto pProb   = std::make_unique<vector<double> >();
+  auto pMT     = std::make_unique<vector<double> >();
+  auto pSigMT  = std::make_unique<vector<double> >();
+  auto pStatus = std::make_unique<vector<int> >();
+
   int drop1 = -1;
   int drop2 = -1;
   if (FitResultList.size()==0) { // in case no fit results were stored in the list
@@ -567,9 +640,14 @@ void TtSemiLepHitFitProducer<LeptonCollection>::produce(edm::Event& evt, const e
   evt.put(std::move(pMT         ), "MT"         );
   evt.put(std::move(pSigMT      ), "SigMT"      );
   evt.put(std::move(pStatus     ), "Status"     );
-  evt.put(std::move(pJetsConsidered), "NumberOfConsideredJets");
+  evt.put(std::make_unique<int>(jetsConsidered), "NumberOfConsideredJets");
   evt.put(std::make_unique<int>(drop1), "Drop1");
   evt.put(std::make_unique<int>(drop2), "Drop2");
 }
 
-#endif
+// Specifications!
+typedef TtSemiLepHitFitProducer<pat::Muon    > TtSemiLepHitFitProducerMuon;
+typedef TtSemiLepHitFitProducer<pat::Electron> TtSemiLepHitFitProducerElectron;
+
+DEFINE_FWK_MODULE(TtSemiLepHitFitProducerMuon);
+DEFINE_FWK_MODULE(TtSemiLepHitFitProducerElectron);

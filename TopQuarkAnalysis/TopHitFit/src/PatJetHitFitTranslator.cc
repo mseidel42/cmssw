@@ -66,7 +66,7 @@ JetTranslatorBase<pat::Jet>::operator()(const pat::Jet& jet, int type /*= hitfit
   
   // In the past, flavor-tags have been used in the higher-level JECs.
   // This is not done anymore, and the feature has been disabled, but one could resurrect it e.g. by:
-  // pat::Jet partonCorrJet(jet.correctedJet(jetCorrectionLevel_, bCase ? "BOTTOM" : "UDS"));
+  // pat::Jet partonCorrJet(jet.correctedJet("L3Absolute", bCase ? "BOTTOM" : "UDS"));
   const Fourvec p(jet.px(),jet.py(),jet.pz(),jet.energy());
 
   return Lepjets_Event_Jet(p, type, jet_resolution);
