@@ -8,9 +8,8 @@ process.MessageLogger.cerr.threshold = 'INFO'
 process.MessageLogger.categories.append('TopHitFit')
 
 ## define input
-from TopQuarkAnalysis.TopEventProducers.tqafInputFiles_cff import relValTTbar
 process.source = cms.Source("PoolSource",
-    fileNames = cms.untracked.vstring(relValTTbar)
+    fileNames = cms.untracked.vstring('/store/mc/RunIISummer20UL17MiniAODv2/TTToSemiLeptonic_TuneCP5_13TeV-powheg-pythia8/MINIAODSIM/106X_mc2017_realistic_v9-v1/00000/00B2D4E3-FF37-9F4F-A724-7E0DBC1B8329.root')
 )
 
 ## define maximal number of events to loop over
@@ -39,8 +38,8 @@ process.load("PhysicsTools.PatAlgos.selectionLayer1.selectedPatCandidates_cff")
 process.task.add(process.selectedPatCandidatesTask)
 
 ## std sequence to produce the kinematic fit for semi-leptonic events
-process.load("TopQuarkAnalysis.TopHitFit.TtSemiLepHitFitProducer_Muons_cfi")
-process.task.add(process.hitFitTtSemiLepEvent)
+process.load("TopQuarkAnalysis.TopHitFit.hitFitTtSemiLepEventMuons_cfi")
+process.task.add(process.hitFitTtSemiLepEventMuons)
 
 ## configure output module
 process.out = cms.OutputModule("PoolOutputModule",

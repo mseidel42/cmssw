@@ -37,7 +37,8 @@ process.maxEvents = cms.untracked.PSet(
 # Input source
 process.source = cms.Source("PoolSource",
     fileNames = cms.untracked.vstring(
-    '/store/relval/CMSSW_11_0_0_pre6/RelValTTbar_13/MINIAODSIM/PU25ns_110X_upgrade2018_realistic_v3-v1/20000/F38B9A9F-4B4B-3D4B-8C9D-9A9B945194EF.root',
+      '/store/mc/RunIISummer20UL17MiniAODv2/TTToSemiLeptonic_TuneCP5_13TeV-powheg-pythia8/MINIAODSIM/106X_mc2017_realistic_v9-v1/00000/00B2D4E3-FF37-9F4F-A724-7E0DBC1B8329.root',
+      #'/store/relval/CMSSW_11_0_0_pre6/RelValTTbar_13/MINIAODSIM/PU25ns_110X_upgrade2018_realistic_v3-v1/20000/F38B9A9F-4B4B-3D4B-8C9D-9A9B945194EF.root',
     ),
     secondaryFileNames = cms.untracked.vstring(),
     skipEvents = cms.untracked.uint32(145)
@@ -109,27 +110,22 @@ process.load("JetMETCorrections.Modules.JetResolutionESProducer_cfi")
 #process.es_prefer_jer = cms.ESPrefer('PoolDBESSource', 'jer')
 
 # example for smearing the jet resolution
-process.slimmedJetsSmeared = cms.EDProducer('SmearedPATJetProducer',
-       src = cms.InputTag('slimmedJets'),
-       enabled = cms.bool(True),
-       rho = cms.InputTag("fixedGridRhoFastjetAll"),
-       algo = cms.string('AK4PFchs'),
-       algopt = cms.string('AK4PFchs_pt'),
-       #resolutionFile = cms.FileInPath('Autumn18_V7_MC_PtResolution_AK4PFchs.txt'),
-       #scaleFactorFile = cms.FileInPath('combined_SFs_uncertSources.txt'),
+from PhysicsTools.PatUtils.smearedPATJetProducer_cfi import *
+process.slimmedJetsSmeared = smearedPATJetProducer.clone(
+    src = cms.InputTag('slimmedJets'),
+    rho = cms.InputTag("fixedGridRhoFastjetAll"),
+    # Gen jet matching
+    genJets = cms.InputTag('slimmedGenJets'),
 
-       genJets = cms.InputTag('slimmedGenJets'),
-       dRMax = cms.double(0.2),
-       dPtMaxFactor = cms.double(3),
+    # Resolution and scale factors source can be either from GT or text files
+    # For GT: 'algo' and 'algopt' must be set
+    algopt = cms.string('AK4PFchs_pt'),
+    algo = cms.string('AK4PFchs'),
+    # For text files: both 'resolutionFile' and 'scaleFactorFile' must point to valid files
+    # resolutionFile = cms.FileInPath('path/to/resolution_file.txt'),
+    # scaleFactorFile = cms.FileInPath('path/to/scale_factor_file.txt'),
+)
 
-       debug = cms.untracked.bool(False),
-   # Systematic variation
-   # 0: Nominal
-   # -1: -1 sigma (down variation)
-   # 1: +1 sigma (up variation)
-   variation = cms.int32(0),  # If not specified, default to 0
-   uncertaintySource = cms.string(""), # If not specified, default to Total
-       )
 process.p=cms.Path(process.slimmedJetsSmeared)
 
 # example for computing total uncertainties on jet resolution
