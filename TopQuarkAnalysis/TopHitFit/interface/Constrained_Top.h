@@ -35,7 +35,6 @@
 #ifndef HITFIT_CONSTRAINED_TOP_H
 #define HITFIT_CONSTRAINED_TOP_H
 
-
 #include "TopQuarkAnalysis/TopHitFit/interface/Fourvec_Constrainer.h"
 #include "TopQuarkAnalysis/TopHitFit/interface/matutil.h"
 #include <iosfwd>
@@ -149,6 +148,7 @@ public:
 
      @param top_mass The mass to which the top quarks should be constrained.
      If this parameter is set to 0, the constraints is skied.
+     A negative value treats solve_nu_tmass and equal_side as false.
 
    */
   Constrained_Top (const Constrained_Top_Args& args,
