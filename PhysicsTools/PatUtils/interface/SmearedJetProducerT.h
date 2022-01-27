@@ -36,26 +36,66 @@
 #include <memory>
 #include <random>
 
+using std::endl;
+using std::cout;
+
+namespace reco {
+  class PFJet;
+  class CaloJet;
+}
+
 namespace pat {
+  class Jet;
   class GenJetMatcher {
   public:
     GenJetMatcher(const edm::ParameterSet& cfg, edm::ConsumesCollector&& collector)
-        : m_genJetsToken(collector.consumes<reco::GenJetCollection>(cfg.getParameter<edm::InputTag>("genJets"))),
+        : m_genJetsTag(cfg.getParameter<edm::InputTag>("genJets")),
+          m_genJetsToken(collector.consumes<reco::GenJetCollection>(m_genJetsTag)),
+          m_use_own_match(m_genJetsTag.label() == ""),
           m_dR_max(cfg.getParameter<double>("dRMax")),
           m_dPt_max_factor(cfg.getParameter<double>("dPtMaxFactor")) {
       // Empty
     }
 
     static void fillDescriptions(edm::ParameterSetDescription& desc) {
-      desc.add<edm::InputTag>("genJets");
-      desc.add<double>("dRMax");
-      desc.add<double>("dPtMaxFactor");
+      desc.add<edm::InputTag>("genJets", edm::InputTag(""))->setComment("Empty: attempt using pat::Jet internal genJets.");
+      desc.add<double>("dRMax", 0.2)->setComment("= cone size (0.4) / 2");
+      desc.add<double>("dPtMaxFactor", 3)->setComment("dPt < 3 * resolution");
     }
 
-    void getTokens(const edm::Event& event) { event.getByToken(m_genJetsToken, m_genJets); }
+    template <class T>
+    void getTokens(const edm::Event& event) {
+      if constexpr (std::is_same<T, Jet>::value) {
+        // Skip token fetching conditionally for pat jets
+        if (m_use_own_match) return;
+      }
+      event.getByToken(m_genJetsToken, m_genJets);
+    }
 
     template <class T>
     const reco::GenJet* match(const T& jet, double resolution) {
+      const reco::GenJet* matched_genJet = nullptr;
+
+      if constexpr (std::is_same<T, Jet>::value) {
+        if (m_use_own_match) {
+          // The match is already there for pat jets, so we don't want to waste time looking.
+          // This method is almost one-to-one inclusive for using slimmedGenJets.
+          // Once in a few thousand events, there is a low-pt (~sub 15 GeV) jet that is not matched.
+          // This is more of a philosophical question with the matching than a problem with the following code:
+          // how come slimmedGenJets differs from the internal match?
+          matched_genJet = jet.genJet();
+          if (matched_genJet) {
+            // The given conditions can be more harsh than those originally required for gen jets, so we check these.
+            const double dPt = std::abs(matched_genJet->pt() - jet.pt());
+            if (dPt > m_dPt_max_factor * resolution || deltaR(*matched_genJet, jet) >= m_dR_max) {
+              matched_genJet = nullptr;
+            }
+          }
+          // Return nullptr, if any of the conditions fails.
+          return matched_genJet;
+        }
+      }
+      // Only look at the gen jet collection if we need it.
       const reco::GenJetCollection& genJets = *m_genJets;
 
       // Try to find a gen jet matching
@@ -63,16 +103,15 @@ namespace pat {
       // dPt < m_dPt_max_factor * resolution
 
       double min_dR = std::numeric_limits<double>::infinity();
-      const reco::GenJet* matched_genJet = nullptr;
 
       for (const auto& genJet : genJets) {
-        double dR = deltaR(genJet, jet);
+        const double dR = deltaR(genJet, jet);
 
         if (dR > min_dR)
           continue;
 
         if (dR < m_dR_max) {
-          double dPt = std::abs(genJet.pt() - jet.pt());
+          const double dPt = std::abs(genJet.pt() - jet.pt());
           if (dPt > m_dPt_max_factor * resolution)
             continue;
 
@@ -85,11 +124,13 @@ namespace pat {
     }
 
   private:
+    edm::InputTag m_genJetsTag;
     edm::EDGetTokenT<reco::GenJetCollection> m_genJetsToken;
     edm::Handle<reco::GenJetCollection> m_genJets;
 
-    double m_dR_max;
-    double m_dPt_max_factor;
+    const bool m_use_own_match;
+    const double m_dR_max;
+    const double m_dPt_max_factor;
   };
 };  // namespace pat
 
@@ -151,27 +192,41 @@ public:
   }
 
   static void fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
+    // smearedJets
     edm::ParameterSetDescription desc;
+    desc.setComment("A generic jet smearing module.");
 
-    desc.add<edm::InputTag>("src");
-    desc.add<bool>("enabled");
-    desc.add<edm::InputTag>("rho");
-    desc.add<std::int32_t>("variation", 0);
-    desc.add<std::string>("uncertaintySource", "");
-    desc.add<std::uint32_t>("seed", 37428479);
-    desc.add<bool>("skipGenMatching", false);
-    desc.add<bool>("useDeterministicSeed", true);
+    desc.add<edm::InputTag>("src")->setComment("Jet collection to smear.");
+    desc.add<bool>("enabled", true)->setComment("If False, no smearing is performed.");
+    desc.add<edm::InputTag>("rho")->setComment("Rho required for JER calculation.");
+    desc.add<int>("variation", 0)->setComment("Systematic variation: 0: Nominal, -1: -sigma (down), 1: +sigma (up).");
+    desc.add<std::string>("uncertaintySource", "")->setComment("If not specified, default to Total.");
+    desc.add<bool>("useDeterministicSeed", true)->setComment("Pseudo-random seed based on event indices & such.");
+    desc.add<unsigned int>("seed", 37428479)->setComment("Default seed, if useDeterministicSeed is set to false.");
+
+    desc.add<bool>("skipGenMatching", false)->setComment("If True, always skip gen jet matching and smear jet with a random gaussian.");
     desc.addUntracked<bool>("debug", false);
 
+    // The user must decide, which pair to use.
     auto source = (edm::ParameterDescription<std::string>("algo", true) and
                    edm::ParameterDescription<std::string>("algopt", true)) xor
                   (edm::ParameterDescription<edm::FileInPath>("resolutionFile", true) and
                    edm::ParameterDescription<edm::FileInPath>("scaleFactorFile", true));
+    source->setComment("Read from GT: algo & algopt. From text files: resolutionFile & scaleFactorFile.");
     desc.addNode(std::move(source));
 
     pat::GenJetMatcher::fillDescriptions(desc);
 
-    descriptions.addDefault(desc);
+    if constexpr (std::is_same<T, pat::Jet>::value) {
+      descriptions.add("smearedPATJetProducer", desc);
+    } else if constexpr (std::is_same<T, reco::PFJet>::value) {
+      descriptions.add("smearedPFJetProducer", desc);
+    } else if constexpr (std::is_same<T, reco::CaloJet>::value) {
+      descriptions.add("smearedCaloJetProducer", desc);
+    } else {
+      // If we end up here, a new jet type has been added and the smearing code requires revision. 
+      throw cms::Exception("BuildError") << "Unknown jet type for SmearedJetProducer!" << endl;
+    }
   }
 
   void produce(edm::Event& event, const edm::EventSetup& setup) override {
@@ -213,7 +268,7 @@ public:
     }
 
     if (m_genJetMatcher)
-      m_genJetMatcher->getTokens(event);
+      m_genJetMatcher->getTokens<T>(event);
 
     auto smearedJets = std::make_unique<JetCollection>();
 
@@ -254,8 +309,7 @@ public:
         }
 
         double dPt = jet.pt() - genJet->pt();
-        smearFactor = 1 + m_nomVar * (jer_sf - 1.) * dPt / jet.pt();
-
+        smearFactor += m_nomVar * (jer_sf - 1.) * dPt / jet.pt();
       } else if (jer_sf > 1) {
         /*
                      * Case 2: we don't have a gen jet. Smear jet pt using a random gaussian variation
@@ -267,7 +321,7 @@ public:
         }
 
         std::normal_distribution<> d(0, sigma);
-        smearFactor = 1. + m_nomVar * d(m_random_generator);
+        smearFactor += m_nomVar * d(m_random_generator);
       } else if (m_debug) {
         std::cout << "Impossible to smear this jet" << std::endl;
       }
