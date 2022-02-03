@@ -235,6 +235,7 @@ public:
 
      @param top_mass The mass to which the top quark should be constrained to.
      A value of zero means this constraint will be removed.
+	 A negative value treats solve_nu_tmass and equal_side as false.
    */
   Top_Fit (const Top_Fit_Args& args,
            double lepw_mass,
@@ -287,6 +288,7 @@ private:
   Constrained_Top _constrainer;
   double _lepw_mass;
   double _hadw_mass;
+  double _top_mass;
 };
 
 } // namespace hitfit
