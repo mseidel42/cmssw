@@ -14,7 +14,8 @@ TtSemiLepJetCombWMassDeltaTopMass::TtSemiLepJetCombWMassDeltaTopMass(const edm::
   bTagAlgorithm_    (cfg.getParameter<std::string>  ("bTagAlgorithm"    )),
   minBDiscBJets_    (cfg.getParameter<double>       ("minBDiscBJets"    )),
   maxBDiscLightJets_(cfg.getParameter<double>       ("maxBDiscLightJets")),
-  neutrinoSolutionType_(cfg.getParameter<int>       ("neutrinoSolutionType"))
+  neutrinoSolutionType_(cfg.getParameter<int>       ("neutrinoSolutionType")),
+  maxNComb_(cfg.getParameter<int>("maxNComb"))
 {
   if(maxNJets_<4 && maxNJets_!=-1)
     throw cms::Exception("WrongConfig")
@@ -23,6 +24,7 @@ TtSemiLepJetCombWMassDeltaTopMass::TtSemiLepJetCombWMassDeltaTopMass(const edm::
 
   produces<std::vector<std::vector<int> > >();
   produces<int>("NumberOfConsideredJets");
+  produces<std::vector<double> >("Chi2");
 }
 
 TtSemiLepJetCombWMassDeltaTopMass::~TtSemiLepJetCombWMassDeltaTopMass()
@@ -36,8 +38,11 @@ TtSemiLepJetCombWMassDeltaTopMass::produce(edm::Event& evt, const edm::EventSetu
   std::unique_ptr<int> pJetsConsidered(new int);
 
   std::vector<int> match;
-  for(unsigned int i = 0; i < 4; ++i)
+  std::vector<int> match2; //second solution
+  for(unsigned int i = 0; i < 4; ++i){
     match.push_back( -1 );
+    match2.push_back( -1 );
+  }
 
   // get jets
   edm::Handle< std::vector<pat::Jet> > jets;
@@ -75,6 +80,14 @@ TtSemiLepJetCombWMassDeltaTopMass::produce(edm::Event& evt, const edm::EventSetu
       if((*jets)[idx].bDiscriminator(bTagAlgorithm_) > minBDiscBJets_    )cntBJets++;
     }
   }
+
+  // if saving two solutions, the second one only makes sence if there are exactly two b jets, and 4 jets. 
+  if(maxNComb_ == 2 && ( maxNJets !=4 || cntBJets != 2 ) ){
+    pOut->push_back( match );
+    evt.put(std::move(pOut));
+    return;
+  }
+
 
   // -----------------------------------------------------
   // associate those jets that get closest to the W mass
@@ -159,7 +172,20 @@ TtSemiLepJetCombWMassDeltaTopMass::produce(edm::Event& evt, const edm::EventSetu
   match[TtSemiLepEvtPartons::LightQBar] = closestToWMassIndices[1];
   match[TtSemiLepEvtPartons::HadB     ] = hadB;
   match[TtSemiLepEvtPartons::LepB     ] = lepB;
-
   pOut->push_back( match );
+
+  if( maxNComb_ == 2 ){
+    match2[TtSemiLepEvtPartons::LightQ   ] = closestToWMassIndices[0];
+    match2[TtSemiLepEvtPartons::LightQBar] = closestToWMassIndices[1];
+    match2[TtSemiLepEvtPartons::HadB     ] = lepB;
+    match2[TtSemiLepEvtPartons::LepB     ] = hadB;
+    pOut->push_back( match2 );
+
+    std::unique_ptr< std::vector<double>            > pChi2  ( new std::vector<double> );
+    pChi2->push_back( 1. );
+    pChi2->push_back( 2. );
+    evt.put(std::move(pChi2       ), "Chi2"       );
+  }
   evt.put(std::move(pOut));
+
 }
