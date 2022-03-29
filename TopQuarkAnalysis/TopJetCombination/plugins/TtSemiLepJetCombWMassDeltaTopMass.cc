@@ -189,6 +189,12 @@ TtSemiLepJetCombWMassDeltaTopMass::produce(edm::Event& evt, const edm::EventSetu
   match[TtSemiLepEvtPartons::LepB     ] = lepB;
   pOut->push_back( match );
 
+  pNeutrinos->push_back(pat::Particle(reco::LeafCandidate(0, neutrino, math::XYZPoint())));
+
+  std::cout << "Neutrino pt =" << pNeutrinos->at(0).pt() << std::endl;                                                       
+  std::cout << "Neutrino eta =" << pNeutrinos->at(0).eta() << std::endl;                                                   
+  std::cout << "Neutrino phi =" << pNeutrinos->at(0).phi() << std::endl;
+
   if( maxNComb_ == 2 ){
     match2[TtSemiLepEvtPartons::LightQ   ] = closestToWMassIndices[0];
     match2[TtSemiLepEvtPartons::LightQBar] = closestToWMassIndices[1];
@@ -204,5 +210,5 @@ TtSemiLepJetCombWMassDeltaTopMass::produce(edm::Event& evt, const edm::EventSetu
     evt.put(std::move(pChi2       ), "Chi2"       );
   }
   evt.put(std::move(pOut));
-
+  evt.put(std::move(pNeutrinos  ), "Neutrinos"  );
 }
