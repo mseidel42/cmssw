@@ -12,6 +12,8 @@ ttSemiLepHypWMassDeltaTopMass = cms.EDProducer("TtSemiLepHypWMassDeltaTopMass",
     leps  = cms.InputTag("selectedPatMuons"),
     ## jet combination
     match = cms.InputTag("findTtSemiLepJetCombWMassDeltaTopMass"),
+    ## save the neutrino solution under
+    neutrinos  = cms.InputTag("findTtSemiLepJetCombWMassDeltaTopMass","Neutrinos"),
     ## number of considered jets
     nJetsConsidered = cms.InputTag("findTtSemiLepJetCombWMassDeltaTopMass","NumberOfConsideredJets"),
     ## specify jet correction level as, Uncorrected, L1Offset, L2Relative, L3Absolute, L4Emf,

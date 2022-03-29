@@ -36,8 +36,7 @@ findTtSemiLepJetCombWMassDeltaTopMass = cms.EDProducer("TtSemiLepJetCombWMassDel
     # the number of jet combinations finally
     # written into the event,
     # if == 1, only the combination with the smallest Delta mt is stored.
-    # if ==2, only events with exactly Njets=4 and NBjets=2 are considered and the both
+    # if == 2, only events with exactly Njets=4 and NBjets=2 are considered and the both
     # possible combinations are stored
-    #-------------------------------------------------
     maxNComb = cms.int32(2)
 )

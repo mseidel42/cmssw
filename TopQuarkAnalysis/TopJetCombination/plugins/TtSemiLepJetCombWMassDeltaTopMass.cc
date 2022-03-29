@@ -25,6 +25,12 @@ TtSemiLepJetCombWMassDeltaTopMass::TtSemiLepJetCombWMassDeltaTopMass(const edm::
   produces<std::vector<std::vector<int> > >();
   produces<int>("NumberOfConsideredJets");
   produces<std::vector<double> >("Chi2");
+  // produces< std::vector<pat::Particle> >("PartonsHadP");
+  // produces< std::vector<pat::Particle> >("PartonsHadQ");
+  // produces< std::vector<pat::Particle> >("PartonsHadB");
+  // produces< std::vector<pat::Particle> >("PartonsLepB");
+  // produces< std::vector<pat::Particle> >("Leptons");
+  produces<std::vector<pat::Particle> >("Neutrinos");
 }
 
 TtSemiLepJetCombWMassDeltaTopMass::~TtSemiLepJetCombWMassDeltaTopMass()
@@ -37,11 +43,20 @@ TtSemiLepJetCombWMassDeltaTopMass::produce(edm::Event& evt, const edm::EventSetu
   std::unique_ptr<std::vector<std::vector<int> > > pOut(new std::vector<std::vector<int> >);
   std::unique_ptr<int> pJetsConsidered(new int);
 
+  // std::unique_ptr< std::vector<pat::Particle> > pPartonsHadP( new std::vector<pat::Particle> );
+  // std::unique_ptr< std::vector<pat::Particle> > pPartonsHadQ( new std::vector<pat::Particle> );
+  // std::unique_ptr< std::vector<pat::Particle> > pPartonsHadB( new std::vector<pat::Particle> );
+  // std::unique_ptr< std::vector<pat::Particle> > pPartonsLepB( new std::vector<pat::Particle> );
+  // std::unique_ptr< std::vector<pat::Particle> > pLeptons    ( new std::vector<pat::Particle> );
+  std::unique_ptr<std::vector<pat::Particle> > pNeutrinos(new std::vector<pat::Particle>);
+  // std::unique_ptr<std::vector<double> > pNeutrinos(new std::vector<double>);
+  // std::unique_ptr<std::vector<pat::Particle> > pNeutrinos(new std::vector<pat::Particle>);
+
   std::vector<int> match;
-  std::vector<int> match2; //second solution
-  for(unsigned int i = 0; i < 4; ++i){
-    match.push_back( -1 );
-    match2.push_back( -1 );
+  std::vector<int> match2;  //second solution
+  for (unsigned int i = 0; i < 4; ++i){
+    match.push_back(-1);
+    match2.push_back(-1);
   }
 
   // get jets
@@ -180,7 +195,9 @@ TtSemiLepJetCombWMassDeltaTopMass::produce(edm::Event& evt, const edm::EventSetu
     match2[TtSemiLepEvtPartons::HadB     ] = lepB;
     match2[TtSemiLepEvtPartons::LepB     ] = hadB;
     pOut->push_back( match2 );
+    pNeutrinos->push_back(pat::Particle(reco::LeafCandidate(0, neutrino, math::XYZPoint())));
 
+    // Trying to make chi2 to be saved into an event tree
     std::unique_ptr< std::vector<double>            > pChi2  ( new std::vector<double> );
     pChi2->push_back( 1. );
     pChi2->push_back( 2. );
