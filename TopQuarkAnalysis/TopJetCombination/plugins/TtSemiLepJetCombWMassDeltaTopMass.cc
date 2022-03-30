@@ -43,6 +43,7 @@ TtSemiLepJetCombWMassDeltaTopMass::produce(edm::Event& evt, const edm::EventSetu
   std::unique_ptr<std::vector<std::vector<int> > > pOut(new std::vector<std::vector<int> >);
   std::unique_ptr<int> pJetsConsidered(new int);
 
+  // std::unique_ptr< std::vector<int>               > pStatus( new std::vector<int> );
   // std::unique_ptr< std::vector<pat::Particle> > pPartonsHadP( new std::vector<pat::Particle> );
   // std::unique_ptr< std::vector<pat::Particle> > pPartonsHadQ( new std::vector<pat::Particle> );
   // std::unique_ptr< std::vector<pat::Particle> > pPartonsHadB( new std::vector<pat::Particle> );
@@ -77,6 +78,8 @@ TtSemiLepJetCombWMassDeltaTopMass::produce(edm::Event& evt, const edm::EventSetu
     evt.put(std::move(pOut));
     *pJetsConsidered = jets->size();
     evt.put(std::move(pJetsConsidered), "NumberOfConsideredJets");
+    pNeutrinos  ->push_back( pat::Particle() ); 
+    evt.put(std::move(pNeutrinos  ), "Neutrinos"  );
     return;
   }
 
@@ -100,6 +103,8 @@ TtSemiLepJetCombWMassDeltaTopMass::produce(edm::Event& evt, const edm::EventSetu
   if(maxNComb_ == 2 && ( maxNJets !=4 || cntBJets != 2 ) ){
     pOut->push_back( match );
     evt.put(std::move(pOut));
+    pNeutrinos  ->push_back( pat::Particle() ); 
+    evt.put(std::move(pNeutrinos  ), "Neutrinos"  );
     return;
   }
 
