@@ -21,14 +21,14 @@ class TtSemiLepHypWMassDeltaTopMass : public TtSemiLepHypothesis  {
 			 const edm::Handle<edm::View<reco::RecoCandidate> >& leps,
 			 const edm::Handle<std::vector<pat::MET> >& mets,
 			 const edm::Handle<std::vector<pat::Jet> >& jets,
-			 std::vector<int>& match, const unsigned int iComb) override; // { TtSemiLepHypothesis::buildHypo(leps, mets, jets, match); };
+			 std::vector<int>& match, const unsigned int iComb) override;
 
-//   edm::EDGetTokenT<std::vector<int> > statusToken_;
-//   edm::EDGetTokenT<std::vector<pat::Particle> > partonsHadPToken_;
-//   edm::EDGetTokenT<std::vector<pat::Particle> > partonsHadQToken_;
-//   edm::EDGetTokenT<std::vector<pat::Particle> > partonsHadBToken_;
-//   edm::EDGetTokenT<std::vector<pat::Particle> > partonsLepBToken_;
-//   edm::EDGetTokenT<std::vector<pat::Particle> > leptonsToken_;
+  edm::EDGetTokenT<std::vector<int> > statusToken_;
+  edm::EDGetTokenT<std::vector<pat::Particle> > partonsHadPToken_;
+  edm::EDGetTokenT<std::vector<pat::Particle> > partonsHadQToken_;
+  edm::EDGetTokenT<std::vector<pat::Particle> > partonsHadBToken_;
+  edm::EDGetTokenT<std::vector<pat::Particle> > partonsLepBToken_;
+  edm::EDGetTokenT<std::vector<pat::Particle> > leptonsToken_;
   edm::EDGetTokenT<std::vector<pat::Particle> > neutrinosToken_;
 
 };

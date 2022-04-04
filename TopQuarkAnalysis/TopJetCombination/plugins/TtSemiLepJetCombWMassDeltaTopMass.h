@@ -36,6 +36,7 @@ class TtSemiLepJetCombWMassDeltaTopMass : public edm::EDProducer {
   double maxBDiscLightJets_;
   int neutrinoSolutionType_;
   int maxNComb_;
+  bool scale2Wmass_;
 };
 
 #endif

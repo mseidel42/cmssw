@@ -236,6 +236,8 @@ TtEvtBuilder<C>::produce(edm::Event& evt, const edm::EventSetup& setup)
 
   // print summary via MessageLogger if verbosity_>0
   ttEvent.print(verbosity_);
+  // HypoClassKey my_hKey = hypKeyTokens_.end();
+  ttEvent.isHypoValid("kWMassDeltaTopMass", 1);
 
   // write object into the edm::Event
   std::unique_ptr<C> pOut(new C);
