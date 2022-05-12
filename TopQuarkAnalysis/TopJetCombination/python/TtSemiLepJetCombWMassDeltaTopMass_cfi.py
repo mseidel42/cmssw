@@ -41,6 +41,12 @@ findTtSemiLepJetCombWMassDeltaTopMass = cms.EDProducer("TtSemiLepJetCombWMassDel
     maxNComb = cms.int32(2),
     ##-------------------------------------------------
     ## scale the two light jets to W mass
-    scale2Wmass = cms.bool(False)
+    scale2Wmass = cms.bool(False),
+    # ------------------------------------------------
+    # specify jet correction level as, Uncorrected, L1Offset, L2Relative, L3Absolute, L4Emf,
+    # L5Hadron, L6UE, L7Parton, a flavor specification will be added automatically, when
+    # chosen
+    # ------------------------------------------------
+    # jetCorrectionLevel = cms.string("L3Absolute")
 
 )

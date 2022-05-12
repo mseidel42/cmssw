@@ -16,7 +16,8 @@ TtSemiLepJetCombWMassDeltaTopMass::TtSemiLepJetCombWMassDeltaTopMass(const edm::
   maxBDiscLightJets_(cfg.getParameter<double>       ("maxBDiscLightJets")),
   neutrinoSolutionType_(cfg.getParameter<int>       ("neutrinoSolutionType")),
   maxNComb_         (cfg.getParameter<int>          ("maxNComb")),
-  scale2Wmass_      (cfg.getParameter<bool>         ("scale2Wmass"))
+  scale2Wmass_      (cfg.getParameter<bool>         ("scale2Wmass")) //,
+  // jetCorrectionLevel_ (cfg.getParameter<std::string> ("jetCorrectionLevel"))
 {
   if(maxNJets_<4 && maxNJets_!=-1)
     throw cms::Exception("WrongConfig")
@@ -217,8 +218,12 @@ TtSemiLepJetCombWMassDeltaTopMass::produce(edm::Event& evt, const edm::EventSetu
   }
 
   if( scale2Wmass_) {
-    float W_mismatch = (float)wMass_/(float)hadW.M();
-    std::cout << "had W = " << hadW.M() << ", W_mismatch = " << W_mismatch << std::endl;
+    if(( hadW.M() < 70 ) || ( 100 < hadW.M() )){
+      hadB=-1;
+      lepB=-1;
+    }
+      float W_mismatch = (float)wMass_/(float)hadW.M();
+    // std::cout << "had W = " << hadW.M() << ", W_mismatch = " << W_mismatch << std::endl;
     light_q = light_q*W_mismatch;
     light_qbar = light_qbar*W_mismatch;
   }
@@ -264,14 +269,14 @@ TtSemiLepJetCombWMassDeltaTopMass::produce(edm::Event& evt, const edm::EventSetu
     pChi2->push_back( 1. );
     pChi2->push_back( 2. );
     evt.put(std::move(pChi2       ), "Chi2"       );
-    std::cout << "Neutrino pt = " << pNeutrinos->at(1).pt() << std::endl;
-    std::cout << "Neutrino eta = " << pNeutrinos->at(1).eta() << std::endl;
-    std::cout << "Neutrino phi = " << pNeutrinos->at(1).phi() << std::endl;
+    // std::cout << "Neutrino pt = " << pNeutrinos->at(1).pt() << std::endl;
+    // std::cout << "Neutrino eta = " << pNeutrinos->at(1).eta() << std::endl;
+    // std::cout << "Neutrino phi = " << pNeutrinos->at(1).phi() << std::endl;
   }
 
-  std::cout << "Neutrino pt =" << pNeutrinos->at(0).pt() << std::endl;                                                       
-  std::cout << "Neutrino eta =" << pNeutrinos->at(0).eta() << std::endl;                                                   
-  std::cout << "Neutrino phi =" << pNeutrinos->at(0).phi() << std::endl;
+  // std::cout << "Neutrino pt =" << pNeutrinos->at(0).pt() << std::endl;                                                       
+  // std::cout << "Neutrino eta =" << pNeutrinos->at(0).eta() << std::endl;                                                   
+  // std::cout << "Neutrino phi =" << pNeutrinos->at(0).phi() << std::endl;
 
   evt.put(std::move(pOut));
   evt.put(std::move(pPartonsHadP), "PartonsHadP");
