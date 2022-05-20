@@ -31,5 +31,22 @@ findTtSemiLepJetCombWMassDeltaTopMass = cms.EDProducer("TtSemiLepJetCombWMassDel
     ##  2 : always take the more central one, i.e. minimize neutrino pz
     ##  3 : maximize the cosine of the angle between lepton and reconstructed W
     ## in all these cases (0, 1, 2, 3), only the real part is used if solutions are complex
-    neutrinoSolutionType = cms.int32(-1)
+    neutrinoSolutionType = cms.int32(-1),
+    ##-------------------------------------------------
+    ## the number of jet combinations finally
+    ## written into the event,
+    ##  1 : only the combination with the smallest Delta mt is stored.
+    ##  2 : only events with exactly Njets=4 and NBjets=2 are considered and the both
+    ## possible combinations are stored
+    maxNComb = cms.int32(2),
+    ##-------------------------------------------------
+    ## scale the two light jets to W mass
+    scale2Wmass = cms.bool(False),
+    # ------------------------------------------------
+    # specify jet correction level as, Uncorrected, L1Offset, L2Relative, L3Absolute, L4Emf,
+    # L5Hadron, L6UE, L7Parton, a flavor specification will be added automatically, when
+    # chosen
+    # ------------------------------------------------
+    # jetCorrectionLevel = cms.string("L3Absolute")
+
 )

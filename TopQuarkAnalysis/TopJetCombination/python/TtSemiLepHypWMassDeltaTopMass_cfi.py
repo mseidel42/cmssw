@@ -12,6 +12,16 @@ ttSemiLepHypWMassDeltaTopMass = cms.EDProducer("TtSemiLepHypWMassDeltaTopMass",
     leps  = cms.InputTag("selectedPatMuons"),
     ## jet combination
     match = cms.InputTag("findTtSemiLepJetCombWMassDeltaTopMass"),
+    ## fit results
+    # match       = cms.InputTag("findTtSemiLepJetCombWMassDeltaTopMass"),
+    # status      = cms.InputTag("findTtSemiLepJetCombWMassDeltaTopMass","Status"),
+    leptons     = cms.InputTag("findTtSemiLepJetCombWMassDeltaTopMass","Leptons"),
+    neutrinos   = cms.InputTag("findTtSemiLepJetCombWMassDeltaTopMass","Neutrinos"),                                    
+    partonsHadP = cms.InputTag("findTtSemiLepJetCombWMassDeltaTopMass","PartonsHadP"),
+    partonsHadQ = cms.InputTag("findTtSemiLepJetCombWMassDeltaTopMass","PartonsHadQ"),
+    partonsHadB = cms.InputTag("findTtSemiLepJetCombWMassDeltaTopMass","PartonsHadB"),
+    partonsLepB = cms.InputTag("findTtSemiLepJetCombWMassDeltaTopMass","PartonsLepB"),
+    # neutrinos  = cms.InputTag("findTtSemiLepJetCombWMassDeltaTopMass","Neutrinos"),
     ## number of considered jets
     nJetsConsidered = cms.InputTag("findTtSemiLepJetCombWMassDeltaTopMass","NumberOfConsideredJets"),
     ## specify jet correction level as, Uncorrected, L1Offset, L2Relative, L3Absolute, L4Emf,

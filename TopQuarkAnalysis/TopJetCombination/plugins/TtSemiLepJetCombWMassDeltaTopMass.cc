@@ -14,7 +14,10 @@ TtSemiLepJetCombWMassDeltaTopMass::TtSemiLepJetCombWMassDeltaTopMass(const edm::
   bTagAlgorithm_    (cfg.getParameter<std::string>  ("bTagAlgorithm"    )),
   minBDiscBJets_    (cfg.getParameter<double>       ("minBDiscBJets"    )),
   maxBDiscLightJets_(cfg.getParameter<double>       ("maxBDiscLightJets")),
-  neutrinoSolutionType_(cfg.getParameter<int>       ("neutrinoSolutionType"))
+  neutrinoSolutionType_(cfg.getParameter<int>       ("neutrinoSolutionType")),
+  maxNComb_         (cfg.getParameter<int>          ("maxNComb")),
+  scale2Wmass_      (cfg.getParameter<bool>         ("scale2Wmass")) //,
+  // jetCorrectionLevel_ (cfg.getParameter<std::string> ("jetCorrectionLevel"))
 {
   if(maxNJets_<4 && maxNJets_!=-1)
     throw cms::Exception("WrongConfig")
@@ -23,6 +26,13 @@ TtSemiLepJetCombWMassDeltaTopMass::TtSemiLepJetCombWMassDeltaTopMass(const edm::
 
   produces<std::vector<std::vector<int> > >();
   produces<int>("NumberOfConsideredJets");
+  produces<std::vector<double> >("Chi2");
+  produces< std::vector<pat::Particle> >("PartonsHadP");
+  produces< std::vector<pat::Particle> >("PartonsHadQ");
+  produces< std::vector<pat::Particle> >("PartonsHadB");
+  produces< std::vector<pat::Particle> >("PartonsLepB");
+  produces< std::vector<pat::Particle> >("Leptons");
+  produces<std::vector<pat::Particle> >("Neutrinos");
 }
 
 TtSemiLepJetCombWMassDeltaTopMass::~TtSemiLepJetCombWMassDeltaTopMass()
@@ -35,9 +45,20 @@ TtSemiLepJetCombWMassDeltaTopMass::produce(edm::Event& evt, const edm::EventSetu
   std::unique_ptr<std::vector<std::vector<int> > > pOut(new std::vector<std::vector<int> >);
   std::unique_ptr<int> pJetsConsidered(new int);
 
+  // std::unique_ptr< std::vector<int>               > pStatus( new std::vector<int> );
+  std::unique_ptr< std::vector<pat::Particle> > pPartonsHadP( new std::vector<pat::Particle> );
+  std::unique_ptr< std::vector<pat::Particle> > pPartonsHadQ( new std::vector<pat::Particle> );
+  std::unique_ptr< std::vector<pat::Particle> > pPartonsHadB( new std::vector<pat::Particle> );
+  std::unique_ptr< std::vector<pat::Particle> > pPartonsLepB( new std::vector<pat::Particle> );
+  std::unique_ptr< std::vector<pat::Particle> > pLeptons    ( new std::vector<pat::Particle> );
+  std::unique_ptr<std::vector<pat::Particle> > pNeutrinos(new std::vector<pat::Particle>);
+
   std::vector<int> match;
-  for(unsigned int i = 0; i < 4; ++i)
-    match.push_back( -1 );
+  std::vector<int> match2;  //second solution
+  for (unsigned int i = 0; i < 4; ++i){
+    match.push_back(-1);
+    match2.push_back(-1);
+  }
 
   // get jets
   edm::Handle< std::vector<pat::Jet> > jets;
@@ -57,6 +78,20 @@ TtSemiLepJetCombWMassDeltaTopMass::produce(edm::Event& evt, const edm::EventSetu
     evt.put(std::move(pOut));
     *pJetsConsidered = jets->size();
     evt.put(std::move(pJetsConsidered), "NumberOfConsideredJets");
+    
+    pPartonsHadP->push_back( pat::Particle() );
+    pPartonsHadQ->push_back( pat::Particle() );
+    pPartonsHadB->push_back( pat::Particle() );
+    pPartonsLepB->push_back( pat::Particle() );
+    pLeptons    ->push_back( pat::Particle() );
+    pNeutrinos  ->push_back( pat::Particle() );
+
+    evt.put(std::move(pPartonsHadP), "PartonsHadP");
+    evt.put(std::move(pPartonsHadQ), "PartonsHadQ");
+    evt.put(std::move(pPartonsHadB), "PartonsHadB");
+    evt.put(std::move(pPartonsLepB), "PartonsLepB");
+    evt.put(std::move(pLeptons    ), "Leptons"    );
+    evt.put(std::move(pNeutrinos  ), "Neutrinos"  );;
     return;
   }
 
@@ -75,6 +110,31 @@ TtSemiLepJetCombWMassDeltaTopMass::produce(edm::Event& evt, const edm::EventSetu
       if((*jets)[idx].bDiscriminator(bTagAlgorithm_) > minBDiscBJets_    )cntBJets++;
     }
   }
+
+  // -----------------------------------------------------
+  // if saving two solutions, the second one only makes sence
+  // if there are exactly two b jets, and 4 jets.
+  // -----------------------------------------------------
+  if(maxNComb_ == 2 && ( maxNJets !=4 || cntBJets != 2 ) ){
+    pOut->push_back( match );
+    evt.put(std::move(pOut));
+    // the getters return empty objects here
+    pPartonsHadP->push_back( pat::Particle() );
+    pPartonsHadQ->push_back( pat::Particle() );
+    pPartonsHadB->push_back( pat::Particle() );
+    pPartonsLepB->push_back( pat::Particle() );
+    pLeptons    ->push_back( pat::Particle() );
+    pNeutrinos  ->push_back( pat::Particle() );
+
+    evt.put(std::move(pPartonsHadP), "PartonsHadP");
+    evt.put(std::move(pPartonsHadQ), "PartonsHadQ");
+    evt.put(std::move(pPartonsHadB), "PartonsHadB");
+    evt.put(std::move(pPartonsLepB), "PartonsLepB");
+    evt.put(std::move(pLeptons    ), "Leptons"    );
+    evt.put(std::move(pNeutrinos  ), "Neutrinos"  );
+    return;
+  }
+
 
   // -----------------------------------------------------
   // associate those jets that get closest to the W mass
@@ -128,10 +188,12 @@ TtSemiLepJetCombWMassDeltaTopMass::produce(edm::Event& evt, const edm::EventSetu
   double deltaTop=-1.;
   int hadB=-1;
   int lepB=-1;
+  //?? Do we need to set these to empty particles if isValid(closestToWMassIndices[0], jets)=false ?
+  reco::Particle::LorentzVector light_q = (*jets)[closestToWMassIndices[0]].p4();
+  reco::Particle::LorentzVector light_qbar = (*jets)[closestToWMassIndices[1]].p4();
+  const reco::Particle::LorentzVector hadW = light_q + light_qbar;
+
   if( isValid(closestToWMassIndices[0], jets) && isValid(closestToWMassIndices[1], jets)) {
-    const reco::Particle::LorentzVector hadW =
-      (*jets)[closestToWMassIndices[0]].p4()+
-      (*jets)[closestToWMassIndices[1]].p4();
     // find hadronic b candidate
     for(unsigned idx=0; idx<maxNJets; ++idx){
       if(useBTagging_ && !isBJet[idx]) continue;
@@ -155,11 +217,78 @@ TtSemiLepJetCombWMassDeltaTopMass::produce(edm::Event& evt, const edm::EventSetu
     }
   }
 
+  if( scale2Wmass_) {
+    if(( hadW.M() < 70 ) || ( 100 < hadW.M() )){
+      hadB=-1;
+      lepB=-1;
+    }
+      float W_mismatch = (float)wMass_/(float)hadW.M();
+    // std::cout << "had W = " << hadW.M() << ", W_mismatch = " << W_mismatch << std::endl;
+    light_q = light_q*W_mismatch;
+    light_qbar = light_qbar*W_mismatch;
+  }
+
+
+  // -----------------------------------------------------
+  // save the solution with the smallest top mass difference
+  // -----------------------------------------------------
   match[TtSemiLepEvtPartons::LightQ   ] = closestToWMassIndices[0];
   match[TtSemiLepEvtPartons::LightQBar] = closestToWMassIndices[1];
   match[TtSemiLepEvtPartons::HadB     ] = hadB;
   match[TtSemiLepEvtPartons::LepB     ] = lepB;
-
   pOut->push_back( match );
+
+
+  pPartonsHadP->push_back(pat::Particle(reco::LeafCandidate(0, light_q, math::XYZPoint())));
+  pPartonsHadQ->push_back(pat::Particle(reco::LeafCandidate(0, light_qbar, math::XYZPoint())));
+  pPartonsHadB->push_back(pat::Particle(reco::LeafCandidate(0, (*jets)[hadB].p4(), math::XYZPoint())));
+  pPartonsLepB->push_back(pat::Particle(reco::LeafCandidate(0, (*jets)[lepB].p4(), math::XYZPoint())));
+  pLeptons->push_back(pat::Particle(reco::LeafCandidate(0, leps->front().p4(), math::XYZPoint())));
+  pNeutrinos->push_back(pat::Particle(reco::LeafCandidate(0, neutrino, math::XYZPoint())));
+  
+  // -----------------------------------------------------
+  // save the solution with the largest top mass difference
+  // -----------------------------------------------------
+  if( maxNComb_ == 2 ){
+    match2[TtSemiLepEvtPartons::LightQ   ] = closestToWMassIndices[0];
+    match2[TtSemiLepEvtPartons::LightQBar] = closestToWMassIndices[1];
+    match2[TtSemiLepEvtPartons::HadB     ] = lepB;
+    match2[TtSemiLepEvtPartons::LepB     ] = hadB;
+    pOut->push_back( match2 );
+    
+    pPartonsHadP->push_back(pat::Particle(reco::LeafCandidate(0, light_q, math::XYZPoint())));
+    pPartonsHadQ->push_back(pat::Particle(reco::LeafCandidate(0, light_qbar, math::XYZPoint())));
+    pPartonsHadB->push_back(pat::Particle(reco::LeafCandidate(0, (*jets)[lepB].p4(), math::XYZPoint())));
+    pPartonsLepB->push_back(pat::Particle(reco::LeafCandidate(0, (*jets)[hadB].p4(), math::XYZPoint())));
+    pLeptons->push_back(pat::Particle(reco::LeafCandidate(0, leps->front().p4(), math::XYZPoint())));
+    pNeutrinos->push_back(pat::Particle(reco::LeafCandidate(0, neutrino, math::XYZPoint())));
+  
+
+    // Trying to make chi2 to be saved into an event tree
+    std::unique_ptr< std::vector<double>            > pChi2  ( new std::vector<double> );
+    pChi2->push_back( 1. );
+    pChi2->push_back( 2. );
+    evt.put(std::move(pChi2       ), "Chi2"       );
+    // std::cout << "Neutrino pt = " << pNeutrinos->at(1).pt() << std::endl;
+    // std::cout << "Neutrino eta = " << pNeutrinos->at(1).eta() << std::endl;
+    // std::cout << "Neutrino phi = " << pNeutrinos->at(1).phi() << std::endl;
+  }
+
+  // std::cout << "Neutrino pt =" << pNeutrinos->at(0).pt() << std::endl;                                                       
+  // std::cout << "Neutrino eta =" << pNeutrinos->at(0).eta() << std::endl;                                                   
+  // std::cout << "Neutrino phi =" << pNeutrinos->at(0).phi() << std::endl;
+
   evt.put(std::move(pOut));
+  evt.put(std::move(pPartonsHadP), "PartonsHadP");
+  evt.put(std::move(pPartonsHadQ), "PartonsHadQ");
+  evt.put(std::move(pPartonsHadB), "PartonsHadB");
+  evt.put(std::move(pPartonsLepB), "PartonsLepB");
+  evt.put(std::move(pLeptons    ), "Leptons"    );
+  evt.put(std::move(pNeutrinos  ), "Neutrinos"  );
+
+                                                   
+  // std::cout << "Adding my verbosity = "  << std::endl;
+  // evt.isHypoValid("kWMassDeltaTopMass",1)
+  // evt.print(1)
+
 }

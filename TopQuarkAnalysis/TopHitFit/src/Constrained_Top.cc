@@ -133,7 +133,7 @@ Constrained_Top::Constrained_Top (const Constrained_Top_Args& args,
     _constrainer.add_constraint (buf);
   }
 
-  if (args.equal_side()) {
+  if (args.equal_side() and top_mass >= 0) {
     sprintf (buf, "(%d %d %d) = (%d %d %d)", nu_label, lepton_label, lepb_label, hadw1_label, hadw2_label, hadb_label);
     _constrainer.add_constraint (buf);
   }
