@@ -112,7 +112,7 @@ TtSemiLepJetCombWMassDeltaTopMass::produce(edm::Event& evt, const edm::EventSetu
   }
 
   // -----------------------------------------------------
-  // if saving two solutions, the second one only makes sence
+  // if saving two solutions, the second one only makes sense
   // if there are exactly two b jets, and 4 jets.
   // -----------------------------------------------------
   if(maxNComb_ == 2 && ( maxNJets !=4 || cntBJets != 2 ) ){
@@ -140,22 +140,23 @@ TtSemiLepJetCombWMassDeltaTopMass::produce(edm::Event& evt, const edm::EventSetu
   // associate those jets that get closest to the W mass
   // with their invariant mass to the hadronic W boson
   // -----------------------------------------------------
-  double wDist =-1.;
+  double wDist = -1.;
   std::vector<int> closestToWMassIndices;
   closestToWMassIndices.push_back(-1);
   closestToWMassIndices.push_back(-1);
-  for(unsigned idx=0; idx<maxNJets; ++idx){
-    if(useBTagging_ && (!isLJet[idx] || (cntBJets<=2 && isBJet[idx]))) continue;
-    for(unsigned jdx=(idx+1); jdx<maxNJets; ++jdx){
-      if(useBTagging_ && (!isLJet[jdx] || (cntBJets<=2 && isBJet[jdx]) || (cntBJets==3 && isBJet[idx] && isBJet[jdx]))) continue;
-      reco::Particle::LorentzVector sum =
-	(*jets)[idx].p4()+
-	(*jets)[jdx].p4();
-      if( wDist<0. || wDist>fabs(sum.mass()-wMass_) ){
-	wDist=fabs(sum.mass()-wMass_);
-	closestToWMassIndices.clear();
-	closestToWMassIndices.push_back(idx);
-	closestToWMassIndices.push_back(jdx);
+  for (unsigned idx = 0; idx < maxNJets; ++idx) {
+    if (useBTagging_ && (!isLJet[idx] || (cntBJets <= 2 && isBJet[idx])))
+      continue;
+    for (unsigned jdx = (idx + 1); jdx < maxNJets; ++jdx) {
+      if (useBTagging_ &&
+          (!isLJet[jdx] || (cntBJets <= 2 && isBJet[jdx]) || (cntBJets == 3 && isBJet[idx] && isBJet[jdx])))
+        continue;
+      reco::Particle::LorentzVector sum = (*jets)[idx].p4() + (*jets)[jdx].p4();
+      if (wDist < 0. || wDist > fabs(sum.mass() - wMass_)) {
+        wDist = fabs(sum.mass() - wMass_);
+        closestToWMassIndices.clear();
+        closestToWMassIndices.push_back(idx);
+        closestToWMassIndices.push_back(jdx);
       }
     }
   }
@@ -193,29 +194,33 @@ TtSemiLepJetCombWMassDeltaTopMass::produce(edm::Event& evt, const edm::EventSetu
   reco::Particle::LorentzVector light_qbar = (*jets)[closestToWMassIndices[1]].p4();
   const reco::Particle::LorentzVector hadW = light_q + light_qbar;
 
-  if( isValid(closestToWMassIndices[0], jets) && isValid(closestToWMassIndices[1], jets)) {
+  if (isValid(closestToWMassIndices[0], jets) && isValid(closestToWMassIndices[1], jets)) {
     // find hadronic b candidate
-    for(unsigned idx=0; idx<maxNJets; ++idx){
-      if(useBTagging_ && !isBJet[idx]) continue;
+    for (unsigned idx = 0; idx < maxNJets; ++idx) {
+      if (useBTagging_ && !isBJet[idx])
+        continue;
       // make sure it's not used up already from the hadronic W
-      if( (int)idx!=closestToWMassIndices[0] && (int)idx!=closestToWMassIndices[1] ){
-	reco::Particle::LorentzVector hadTop = hadW + (*jets)[idx].p4();
-	// find leptonic b candidate
-	for(unsigned jdx=0; jdx<maxNJets; ++jdx){
-	  if(useBTagging_ && !isBJet[jdx]) continue;
-	  // make sure it's not used up already from the hadronic branch
-	  if( (int)jdx!=closestToWMassIndices[0] && (int)jdx!=closestToWMassIndices[1] && jdx!=idx ){
-	    reco::Particle::LorentzVector lepTop = lepW + (*jets)[jdx].p4();
-	    if( deltaTop<0. || deltaTop>fabs(hadTop.mass()-lepTop.mass()) ){
-	      deltaTop=fabs(hadTop.mass()-lepTop.mass());
-	      hadB=idx;
-	      lepB=jdx;
-	    }
-	  }
-	}
+      if ((int)idx != closestToWMassIndices[0] && (int)idx != closestToWMassIndices[1]) {
+        reco::Particle::LorentzVector hadTop = hadW + (*jets)[idx].p4();
+        // find leptonic b candidate
+        for (unsigned jdx = 0; jdx < maxNJets; ++jdx) {
+          if (useBTagging_ && !isBJet[jdx])
+            continue;
+          // make sure it's not used up already from the hadronic branch
+          if ((int)jdx != closestToWMassIndices[0] && (int)jdx != closestToWMassIndices[1] && jdx != idx) {
+            reco::Particle::LorentzVector lepTop = lepW + (*jets)[jdx].p4();
+            if (deltaTop < 0. || deltaTop > fabs(hadTop.mass() - lepTop.mass())) {
+              deltaTop = fabs(hadTop.mass() - lepTop.mass());
+              hadB = idx;
+              lepB = jdx;
+            }
+          }
+        }
       }
     }
   }
+
+  // TODO: apply L5 corrections here
 
   if( scale2Wmass_) {
     if(( hadW.M() < 70 ) || ( 100 < hadW.M() )){
