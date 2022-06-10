@@ -37,7 +37,7 @@ class TtSemiLepJetCombWMassDeltaTopMass : public edm::EDProducer {
   int neutrinoSolutionType_;
   int maxNComb_;
   bool scale2Wmass_;
-  // std::string jetCorrectionLevel_;
+  std::string jetCorrectionLevel_;
 };
 
 #endif

@@ -16,8 +16,8 @@ TtSemiLepJetCombWMassDeltaTopMass::TtSemiLepJetCombWMassDeltaTopMass(const edm::
   maxBDiscLightJets_(cfg.getParameter<double>       ("maxBDiscLightJets")),
   neutrinoSolutionType_(cfg.getParameter<int>       ("neutrinoSolutionType")),
   maxNComb_         (cfg.getParameter<int>          ("maxNComb")),
-  scale2Wmass_      (cfg.getParameter<bool>         ("scale2Wmass")) //,
-  // jetCorrectionLevel_ (cfg.getParameter<std::string> ("jetCorrectionLevel"))
+  scale2Wmass_      (cfg.getParameter<bool>         ("scale2Wmass")),
+  jetCorrectionLevel_ (cfg.getParameter<std::string> ("jetCorrectionLevel"))
 {
   if(maxNJets_<4 && maxNJets_!=-1)
     throw cms::Exception("WrongConfig")
@@ -151,7 +151,7 @@ TtSemiLepJetCombWMassDeltaTopMass::produce(edm::Event& evt, const edm::EventSetu
       if (useBTagging_ &&
           (!isLJet[jdx] || (cntBJets <= 2 && isBJet[jdx]) || (cntBJets == 3 && isBJet[idx] && isBJet[jdx])))
         continue;
-      reco::Particle::LorentzVector sum = (*jets)[idx].p4() + (*jets)[jdx].p4();
+      reco::Particle::LorentzVector sum = (*jets)[idx].correctedP4(jetCorrectionLevel_, "uds") + (*jets)[jdx].correctedP4(jetCorrectionLevel_, "uds");
       if (wDist < 0. || wDist > fabs(sum.mass() - wMass_)) {
         wDist = fabs(sum.mass() - wMass_);
         closestToWMassIndices.clear();
@@ -190,8 +190,8 @@ TtSemiLepJetCombWMassDeltaTopMass::produce(edm::Event& evt, const edm::EventSetu
   int hadB=-1;
   int lepB=-1;
   //?? Do we need to set these to empty particles if isValid(closestToWMassIndices[0], jets)=false ?
-  reco::Particle::LorentzVector light_q = (*jets)[closestToWMassIndices[0]].p4();
-  reco::Particle::LorentzVector light_qbar = (*jets)[closestToWMassIndices[1]].p4();
+  reco::Particle::LorentzVector light_q = (*jets)[closestToWMassIndices[0]].correctedP4(jetCorrectionLevel_, "uds");
+  reco::Particle::LorentzVector light_qbar = (*jets)[closestToWMassIndices[1]].correctedP4(jetCorrectionLevel_, "uds");
   const reco::Particle::LorentzVector hadW = light_q + light_qbar;
 
   if (isValid(closestToWMassIndices[0], jets) && isValid(closestToWMassIndices[1], jets)) {
@@ -201,14 +201,14 @@ TtSemiLepJetCombWMassDeltaTopMass::produce(edm::Event& evt, const edm::EventSetu
         continue;
       // make sure it's not used up already from the hadronic W
       if ((int)idx != closestToWMassIndices[0] && (int)idx != closestToWMassIndices[1]) {
-        reco::Particle::LorentzVector hadTop = hadW + (*jets)[idx].p4();
+        reco::Particle::LorentzVector hadTop = hadW + (*jets)[idx].correctedP4(jetCorrectionLevel_, "bottom");
         // find leptonic b candidate
         for (unsigned jdx = 0; jdx < maxNJets; ++jdx) {
           if (useBTagging_ && !isBJet[jdx])
             continue;
           // make sure it's not used up already from the hadronic branch
           if ((int)jdx != closestToWMassIndices[0] && (int)jdx != closestToWMassIndices[1] && jdx != idx) {
-            reco::Particle::LorentzVector lepTop = lepW + (*jets)[jdx].p4();
+            reco::Particle::LorentzVector lepTop = lepW + (*jets)[jdx].correctedP4(jetCorrectionLevel_, "bottom");
             if (deltaTop < 0. || deltaTop > fabs(hadTop.mass() - lepTop.mass())) {
               deltaTop = fabs(hadTop.mass() - lepTop.mass());
               hadB = idx;
@@ -220,17 +220,10 @@ TtSemiLepJetCombWMassDeltaTopMass::produce(edm::Event& evt, const edm::EventSetu
     }
   }
 
-  // TODO: apply L5 corrections here
-
   if( scale2Wmass_) {
-    if(( hadW.M() < 70 ) || ( 100 < hadW.M() )){
-      hadB=-1;
-      lepB=-1;
-    }
-      float W_mismatch = (float)wMass_/(float)hadW.M();
-    // std::cout << "had W = " << hadW.M() << ", W_mismatch = " << W_mismatch << std::endl;
-    light_q = light_q*W_mismatch;
-    light_qbar = light_qbar*W_mismatch;
+    float correctionFactor = wMass_/hadW.M();
+    light_q = light_q*correctionFactor;
+    light_qbar = light_qbar*correctionFactor;
   }
 
 
@@ -246,8 +239,8 @@ TtSemiLepJetCombWMassDeltaTopMass::produce(edm::Event& evt, const edm::EventSetu
 
   pPartonsHadP->push_back(pat::Particle(reco::LeafCandidate(0, light_q, math::XYZPoint())));
   pPartonsHadQ->push_back(pat::Particle(reco::LeafCandidate(0, light_qbar, math::XYZPoint())));
-  pPartonsHadB->push_back(pat::Particle(reco::LeafCandidate(0, (*jets)[hadB].p4(), math::XYZPoint())));
-  pPartonsLepB->push_back(pat::Particle(reco::LeafCandidate(0, (*jets)[lepB].p4(), math::XYZPoint())));
+  pPartonsHadB->push_back(pat::Particle(reco::LeafCandidate(0, (*jets)[hadB].correctedP4(jetCorrectionLevel_, "bottom"), math::XYZPoint())));
+  pPartonsLepB->push_back(pat::Particle(reco::LeafCandidate(0, (*jets)[lepB].correctedP4(jetCorrectionLevel_, "bottom"), math::XYZPoint())));
   pLeptons->push_back(pat::Particle(reco::LeafCandidate(0, leps->front().p4(), math::XYZPoint())));
   pNeutrinos->push_back(pat::Particle(reco::LeafCandidate(0, neutrino, math::XYZPoint())));
   
@@ -263,8 +256,8 @@ TtSemiLepJetCombWMassDeltaTopMass::produce(edm::Event& evt, const edm::EventSetu
     
     pPartonsHadP->push_back(pat::Particle(reco::LeafCandidate(0, light_q, math::XYZPoint())));
     pPartonsHadQ->push_back(pat::Particle(reco::LeafCandidate(0, light_qbar, math::XYZPoint())));
-    pPartonsHadB->push_back(pat::Particle(reco::LeafCandidate(0, (*jets)[lepB].p4(), math::XYZPoint())));
-    pPartonsLepB->push_back(pat::Particle(reco::LeafCandidate(0, (*jets)[hadB].p4(), math::XYZPoint())));
+    pPartonsHadB->push_back(pat::Particle(reco::LeafCandidate(0, (*jets)[lepB].correctedP4(jetCorrectionLevel_, "bottom"), math::XYZPoint())));
+    pPartonsLepB->push_back(pat::Particle(reco::LeafCandidate(0, (*jets)[hadB].correctedP4(jetCorrectionLevel_, "bottom"), math::XYZPoint())));
     pLeptons->push_back(pat::Particle(reco::LeafCandidate(0, leps->front().p4(), math::XYZPoint())));
     pNeutrinos->push_back(pat::Particle(reco::LeafCandidate(0, neutrino, math::XYZPoint())));
   

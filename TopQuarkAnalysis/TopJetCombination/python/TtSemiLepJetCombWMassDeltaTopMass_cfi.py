@@ -47,6 +47,6 @@ findTtSemiLepJetCombWMassDeltaTopMass = cms.EDProducer("TtSemiLepJetCombWMassDel
     # L5Hadron, L6UE, L7Parton, a flavor specification will be added automatically, when
     # chosen
     # ------------------------------------------------
-    # jetCorrectionLevel = cms.string("L3Absolute")
+    jetCorrectionLevel = cms.string("L3Absolute")
 
 )
