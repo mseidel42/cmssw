@@ -104,6 +104,14 @@ namespace gen {
     fMasterGen->settings.addParm("PTFilter:quarkRapidity", 10.0, true, true, 0.0, 10.);
     fMasterGen->settings.addParm("PTFilter:quarkPt", -.1, true, true, -.1, 100.);
 
+    //add settings for RecoilToTop tool
+    fMasterGen->settings.addFlag("TopRecoilHook:doTopRecoilIn",true);
+    fMasterGen->settings.addFlag("TopRecoilHook:useOldDipoleIn",false);
+    fMasterGen->settings.addFlag("TopRecoilHook:doListIn",false);
+    fMasterGen->settings.addFlag("TopRecoilHook:doListIn",false);
+    fMasterGen->settings.addFlag("TopRecoilHook:TimeShower:recoilToColoured", true);
+    fMasterGen->settings.addFlag("TopRecoilHook:TimeShower:recoilDeadCone",false);
+    
     //add settings for powheg resonance scale calculation
     fMasterGen->settings.addFlag("POWHEGres:calcScales", false);
     fMasterGen->settings.addFlag("POWHEG:bb4l", false);
@@ -146,6 +154,11 @@ namespace gen {
 
       if (!fMasterGen->readString(*line))
         throw cms::Exception("PythiaError") << "Pythia 8 did not accept \"" << *line << "\"." << std::endl;
+
+      if (line->find("TopRecoilHook:") != std::string::npos) {
+        if (!fDecayer->readString(*line))
+          throw cms::Exception("PythiaError") << "Pythia 8 Decayer did not accept \"" << *line << "\"." << std::endl;
+      }
 
       if (line->find("ParticleDecays:") != std::string::npos) {
         if (!fDecayer->readString(*line))
