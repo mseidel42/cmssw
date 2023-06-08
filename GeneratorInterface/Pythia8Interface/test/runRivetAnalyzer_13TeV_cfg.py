@@ -47,7 +47,7 @@ process.generator = cms.EDFilter("Pythia8GeneratorFilter",
              'Top:gg2ttbar    = on',
              'Top:qqbar2ttbar = on',
              '6:m0 = 172.5',    # top mass'
-             'TopRecoilHook = on',
+             'TopRecoilHook:doTopRecoilIn = on',
        ),
          parameterSets = cms.vstring('processParameters')
      )

@@ -428,7 +428,7 @@ bool Pythia8Hadronizer::initializeForInternalPartons() {
     (fUserHooksVector->hooks).push_back(fPowhegHooksBB4L);
   }
 
-  bool TopRecoilHook1 = fMasterGen->settings.flag("TopRecoilHook");
+  bool TopRecoilHook1 = fMasterGen->settings.flag("TopRecoilHook:doTopRecoilIn");
   if (TopRecoilHook1) {
     edm::LogInfo("Pythia8Interface") << "Turning on RecoilToTop hook from Pythia8Interface";
     if (!fTopRecoilHook.get())
@@ -476,7 +476,7 @@ bool Pythia8Hadronizer::initializeForInternalPartons() {
     fMasterGen->setDecayPtr(fBiasedTauDecayer, handledParticles);
   }
 
-  bool resonanceDecayFilter = fMasterGen->settings.flag("ResonanceDecayFilte r:filter");
+  bool resonanceDecayFilter = fMasterGen->settings.flag("ResonanceDecayFilter:filter");
   if (resonanceDecayFilter) {
     fResonanceDecayFilterHook.reset(new ResonanceDecayFilterHook);
     (fUserHooksVector->hooks).push_back(fResonanceDecayFilterHook);
