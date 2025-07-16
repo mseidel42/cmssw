@@ -31,7 +31,23 @@ namespace reco {
           m_partons(partons),
           m_leptons(leptons),
           m_hadronFlavour(hadronFlavour),
-          m_partonFlavour(partonFlavour) {}
+          m_partonFlavour(partonFlavour),
+          m_sdfAlgoFlavour(-1) {}
+    JetFlavourInfo(const GenParticleRefVector& bHadrons,
+                   const GenParticleRefVector& cHadrons,
+                   const GenParticleRefVector& partons,
+                   const GenParticleRefVector& leptons,
+                   const GenParticleRefVector& particles,
+                   const int hadronFlavour,
+                   const int partonFlavour,
+                   const int sdfAlgoFlavour)
+        : m_bHadrons(bHadrons),
+          m_cHadrons(cHadrons),
+          m_partons(partons),
+          m_leptons(leptons),
+          m_hadronFlavour(hadronFlavour),
+          m_partonFlavour(partonFlavour),
+          m_sdfAlgoFlavour(sdfAlgoFlavour) {}
 
     /// Return a vector of GenParticleRef's to b hadrons clustered inside the jet
     const GenParticleRefVector& getbHadrons() const { return m_bHadrons; }
@@ -45,19 +61,26 @@ namespace reco {
     const int getHadronFlavour() const { return m_hadronFlavour; }
     /// Return the parton-based flavour
     const int getPartonFlavour() const { return m_partonFlavour; }
+    /// Return the flavour defined by SDF algorithm
+    const int getSdfAlgoFlavour() const { return m_sdfAlgoFlavour; }
 
     /// Set the hadron-based flavour
     void setHadronFlavour(const int hadronFlavour) { m_hadronFlavour = hadronFlavour; }
     /// Set the parton-based flavour
     void setPartonFlavour(const int partonFlavour) { m_partonFlavour = partonFlavour; }
+    /// Set the flavour defined by SDF algorithm
+    void setSdfAlgoFlavour(const int sdfAlgoFlavour) { m_sdfAlgoFlavour = sdfAlgoFlavour; }
 
   private:
     GenParticleRefVector m_bHadrons;
     GenParticleRefVector m_cHadrons;
     GenParticleRefVector m_partons;
     GenParticleRefVector m_leptons;
+    /// Original hadronFlavour and partonFlavour definition.
     int m_hadronFlavour;
     int m_partonFlavour;
+    /// SDF algorithm flavour definition (arXiv:2205.01109)
+    int m_sdfAlgoFlavour;
   };
 
 }  // namespace reco
