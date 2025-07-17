@@ -62,14 +62,14 @@ namespace reco {
     /// Return the parton-based flavour
     const int getPartonFlavour() const { return m_partonFlavour; }
     /// Return the flavour defined by SDF algorithm
-    const int getSdfAlgoFlavour() const { return m_sdfAlgoFlavour; }
+    const int getSDFAlgoFlavour() const { return m_sdfAlgoFlavour; }
 
     /// Set the hadron-based flavour
     void setHadronFlavour(const int hadronFlavour) { m_hadronFlavour = hadronFlavour; }
     /// Set the parton-based flavour
     void setPartonFlavour(const int partonFlavour) { m_partonFlavour = partonFlavour; }
     /// Set the flavour defined by SDF algorithm
-    void setSdfAlgoFlavour(const int sdfAlgoFlavour) { m_sdfAlgoFlavour = sdfAlgoFlavour; }
+    void setSDFAlgoFlavour(const int sdfAlgoFlavour) { m_sdfAlgoFlavour = sdfAlgoFlavour; }
 
   private:
     GenParticleRefVector m_bHadrons;
