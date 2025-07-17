@@ -102,6 +102,10 @@
 #include "fastjet/Selector.hh"
 #include "fastjet/PseudoJet.hh"
 
+/// Include SDF algorithm as a jet flavour definition
+#include "fastjet/contrib/SDFPlugin.hh"
+#include "fastjet/contrib/FlavInfo.hh"
+
 //
 // constants, enums and typedefs
 //
