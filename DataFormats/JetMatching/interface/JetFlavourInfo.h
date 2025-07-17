@@ -17,7 +17,7 @@ namespace reco {
 
   class JetFlavourInfo {
   public:
-    JetFlavourInfo(void) : m_hadronFlavour(0), m_partonFlavour(0), m_sdfAlgoFlavour(-1) {}
+    JetFlavourInfo(void) : m_hadronFlavour(0), m_partonFlavour(0), m_sdfAlgoFlavour(0) {}
     JetFlavourInfo(const int hadronFlavour, const int partonFlavour)
         : m_hadronFlavour(hadronFlavour), m_partonFlavour(partonFlavour) {}
     JetFlavourInfo(const GenParticleRefVector& bHadrons,
@@ -32,7 +32,7 @@ namespace reco {
           m_leptons(leptons),
           m_hadronFlavour(hadronFlavour),
           m_partonFlavour(partonFlavour),
-          m_sdfAlgoFlavour(-1) {}
+          m_sdfAlgoFlavour(0) {}
     JetFlavourInfo(const GenParticleRefVector& bHadrons,
                    const GenParticleRefVector& cHadrons,
                    const GenParticleRefVector& partons,
