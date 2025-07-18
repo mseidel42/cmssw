@@ -180,11 +180,8 @@ private:
                    int& hadronFlavour,
                    int& partonFlavour);
 
-  void makeSDFAlgoFlavouredJets(const edm::Handle<reco::GenParticleRefVector>& fullGenParticles,
-                                const double& sdfAlgoRParam,
-                                const double& sdfAlgoZCut,
-                                const double& sdfAlgoBeta,
-                                std::vector<fastjet::PseudoJet>& finalSDFAlgoFlavouredJets);
+  void makeSDFAlgoFlavouredJets(const reco::GenPArticleCollection& a_fullGenParticles,
+                                std::vector<fastjet::PseudoJet>& a_finalSDFAlgoFlavouredJets);
 
   void assignToSubjets(const reco::GenParticleRefVector& clusteredParticles,
                        const edm::Handle<edm::View<reco::Jet>>& subjets,
@@ -202,7 +199,7 @@ private:
   edm::EDGetTokenT<reco::GenParticleRefVector> leptonsToken_;         // Input lepton collection
 
   /// Input gen particles collection, only needed when some new jet flavour definition is used.
-  const edm::EDGetTokenT<edm::GenParticleRefVector> fullGenParticlesToken_;
+  edm::EDGetTokenT<edm::GenParticleCollection> fullGenParticlesToken_;
 
   const std::string jetAlgorithm_;
   const double rParam_;
@@ -224,7 +221,7 @@ private:
   const bool useLeptons_;
 
   /// Flag for introducing full gen Particle collection, only needed when some new jet flavour definition is used.
-  const bool useFullGenParticles_;
+  const bool enableFJContribFlavAlgo_;
 
   ClusterSequencePtr fjClusterSeq_;
   JetDefPtr fjJetDefinition_;
@@ -243,7 +240,6 @@ JetFlavourClustering::JetFlavourClustering(const edm::ParameterSet& iConfig)
       cHadronsToken_(consumes<reco::GenParticleRefVector>(iConfig.getParameter<edm::InputTag>("cHadrons"))),
       partonsToken_(consumes<reco::GenParticleRefVector>(iConfig.getParameter<edm::InputTag>("partons"))),
       /// Input gen particles collection, only needed when some new jet flavour definition is used.
-      fullGenParticlesToken_(consumes<reco::GenParticleRefVector>(iConfig.getParameter<edm::InputTag>("fullGenParticles"))),
       jetAlgorithm_(iConfig.getParameter<std::string>("jetAlgorithm")),
       rParam_(iConfig.getParameter<double>("rParam")),
 
@@ -260,16 +256,12 @@ JetFlavourClustering::JetFlavourClustering(const edm::ParameterSet& iConfig)
       sdfAlgoZCut_(iConfig.exists("sdfAlgoZCut") ? iConfig.getParameter<double>("sdfAlgoZCut") : 0.1),
       sdfAlgoBeta_(iConfig.exists("sdfAlgoBeta") ? iConfig.getParameter<double>("sdfAlgoBeta") : 0.0),
       /// Flags for enabling new flavour definition algorithm. Double-check if full gen particles collection is given.
-      enableSDFAlgoFlavour_(iConfig.exists("fullGenParticles") &&
-                            iConfig.exists("enableSDFAlgoFlavour") &&
+      enableSDFAlgoFlavour_(iConfig.exists("enableSDFAlgoFlavour") &&
                             iConfig.getParameter<bool>("enableSDFAlgoFlavour")),
 
       useSubjets_(iConfig.exists("groomedJets") && iConfig.exists("subjets")),
       useLeptons_(iConfig.exists("leptons")),
-      useFullGenParticles_(iConfig.exists("fullGenParticles") &&
-                         ((iConfig.exists("enableSDFAlgoFlavour") &&
-                           iConfig.getParameter<bool>("enableSDFAlgoFlavour")))) // Further lines for further algorithm.
-
+      enableFJContribFlavAlgo_(enableSDFAlgoFlavour_)
 
 {
   // register your products
@@ -297,6 +289,16 @@ JetFlavourClustering::JetFlavourClustering(const edm::ParameterSet& iConfig)
   }
   if (useLeptons_) {
     leptonsToken_ = consumes<reco::GenParticleRefVector>(iConfig.getParameter<edm::InputTag>("leptons"));
+  }
+  // Verify whether full GenParticle collection is given for new jet flavour definition algorithm.
+  if (enableFJContribFlavAlgo_ && !iConfig.existsAs<edm::InputTag>("fullGenParticles")) {
+    throw cms::Exception("Configuration")
+        << "New jet flavour definition algorithm requires full GenParticle collection, but it is not given in the "
+        << "configuration. Please provide full 'genParticles' via 'fullGenParticles' parameter.";
+  }
+  if (enableFJContribFlavAlgo_) {
+    fullGenParticlesToken_ = consumes<reco::GenParticleCollection>(
+        iConfig.getParameter<edm::InputTag>("fullGenParticles"));  // Input full gen particles collection
   }
 }
 
@@ -339,9 +341,10 @@ void JetFlavourClustering::produce(edm::Event& iEvent, const edm::EventSetup& iS
     iEvent.getByToken(leptonsToken_, leptons);
 
   // Import full gen particles collection, only needed when some new jet flavour definition is used.
-  edm::Handle<reco::GenParticleRefVector> fullGenParticles;
-  if (useFullGenParticles_)
-        iEvent.getByToken(fullGenParticlesToken_, fullGenParticles);
+  edm::Handle<reco::GenParticleCollection> fullGenParticles;
+  if (enableFJContribFlavAlgo_) {
+      iEvent.getByToken(fullGenParticlesToken_, fullGenParticles);
+  }
 
   auto jetFlavourInfos = std::make_unique<reco::JetFlavourInfoMatchingCollection>(reco::JetRefBaseProd(jets));
   std::unique_ptr<reco::JetFlavourInfoMatchingCollection> subjetFlavourInfos;
@@ -794,6 +797,33 @@ void JetFlavourClustering::assignToSubjets(const reco::GenParticleRefVector& clu
 
     assignedParticles.at(closestSubjetIdx).push_back(*it);
   }
+}
+
+// ------------ method makes SDF algorithm-flavoured jets to match original jets------------
+void JetFlavourClustering::makeSDFAlgoFlavouredJets(const edm::Handle<reco::GenParticleCollection>& a_fullGenParticles,
+                                                          std::vector<fastjet::PseudoJet>& a_finalSDFAlgoFlavouredJets){
+    // Verify if a_finalSDFAlgoFlavouredJets is empty.
+    if (!a_finalSDFAlgoFlavouredJets.empty()) {
+      throw cms::Exception("SDFAlgoFlavouredJetsNotEmpty")
+          << "The vector of SDF algorithm-flavoured jets is not empty. Please check the configuration.";
+    }
+    // Class for SDF flavour calculation
+    fastjet::contrib::SDFlavCalc sdfFlavCalc(sdfAlgoBeta_, sdfAlgoZCut_, rParam_);
+    // Convert the full gen particles to std::vector<fastjet::PseudoJet>.
+    auto fullGenParticleProduct = a_fullGenParticles.product();
+    std::vector<fastjet::PseudoJet> fullGenEvent;
+    for (const auto& particle : *fullGenParticleProduct) {
+      if (particle.status() != 1) {
+        continue;  // only consider final state particles
+      }
+      fastjet::PseudoJet pseudoJet(particle.px(), particle.py(), particle.pz(), particle.energy());
+      pseudoJet.set_user_info(new FlavHistory(particle.pdgId()));
+      fullGenEvent.push_back(pseudoJet);
+    }
+    // Clustering with current jet definition
+    // [QUESTION] Do we have some more eleegant way to do this?
+    a_finalSDFAlgoFlavouredJets = fjJetDefinition_->operator()(fullGenEvent);
+    sdfFlavCalc(a_finalSDFAlgoFlavouredJets);x
 }
 
 // ------------ method fills 'descriptions' with the allowed parameters for the module  ------------
