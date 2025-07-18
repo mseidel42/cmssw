@@ -181,7 +181,7 @@ private:
                    int& partonFlavour);
 
   void makeSDFAlgoFlavouredJets(const reco::GenPArticleCollection& a_fullGenParticles,
-                                std::vector<fastjet::PseudoJet>& a_finalSDFAlgoFlavouredJets);
+                                       std::vector<fastjet::PseudoJet>& a_finalSDFAlgoFlavouredJets);
 
   void assignToSubjets(const reco::GenParticleRefVector& clusteredParticles,
                        const edm::Handle<edm::View<reco::Jet>>& subjets,
