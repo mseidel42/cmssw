@@ -104,6 +104,7 @@
 
 /// Include SDF algorithm as a jet flavour definition
 #include "fastjet/contrib/SDFPlugin.hh"
+#include "fastjet/contrib/GHSAlgo.hh"
 #include "fastjet/contrib/FlavInfo.hh"
 
 //
@@ -145,6 +146,16 @@ protected:
   int m_type;
 };
 
+class GhostFinalPartonInfo : public GhostInfo {
+public:
+  GhostFinalPartonInfo(const reco::GenParticleRef& particleRef,
+                       const bool& isFinalParton)
+      : GhostInfo(false, false, true, false, particleRef) {
+    m_type |= (1 << 4);  // Set the final parton flag
+  }
+  const bool isFinalParton() const { return (m_type & (1 << 4)); }  // Check if this is a final parton
+}
+
 class JetFlavourClustering : public edm::stream::EDProducer<> {
 public:
   explicit JetFlavourClustering(const edm::ParameterSet&);
@@ -163,6 +174,10 @@ private:
                     const bool isLepton,
                     std::vector<fastjet::PseudoJet>& constituents);
 
+  void insertGhostFinalPartons(const edm::Handle<reco::GenParticleRefVector>& particles,
+                               const double ghostRescaling,
+                               std::vector<fastjet::PseudoJet>& constituents);
+
   void matchReclusteredJets(const edm::Handle<edm::View<reco::Jet>>& jets,
                             const std::vector<fastjet::PseudoJet>& matchedJets,
                             std::vector<int>& matchedIndices);
@@ -180,7 +195,19 @@ private:
                    int& hadronFlavour,
                    int& partonFlavour);
 
-  void makeSDFAlgoFlavouredJets(const reco::GenPArticleCollection& a_fullGenParticles,
+  void makeGHSAlgoFlavour(const std::vector<fastjet::PseudoJet>& fjClusteredJetPartons,
+                          const edm::Handle<edm::View<reco::Jet> >& genJets,
+                          std::vector<int>& matchedIndices,
+                          std::vector<fastjet::contrib::FlavInfo>& fjFlavInfos);
+
+  int encodeFJFlavInfo(const fastjet::contrib::FlavInfo& fjFlavInfo);
+
+  bool isFinalParton(const reco::GenParticleRef& particle) const;
+
+  void makeFinalPartonSet(const reco::GenParticleRefVector& particles,
+                                reco::GenParticleRefVector& finalPartons);
+
+  void makeSDFAlgoFlavouredJets(const reco::GenParticleCollection& a_fullGenParticles,
                                        std::vector<fastjet::PseudoJet>& a_finalSDFAlgoFlavouredJets);
 
   void assignToSubjets(const reco::GenParticleRefVector& clusteredParticles,
@@ -198,9 +225,6 @@ private:
   edm::EDGetTokenT<edm::ValueMap<float>> weightsToken_;               // Input weights collection
   edm::EDGetTokenT<reco::GenParticleRefVector> leptonsToken_;         // Input lepton collection
 
-  /// Input gen particles collection, only needed when some new jet flavour definition is used.
-  edm::EDGetTokenT<edm::GenParticleCollection> fullGenParticlesToken_;
-
   const std::string jetAlgorithm_;
   const double rParam_;
   const double jetPtMin_;
@@ -212,9 +236,13 @@ private:
   /// - SDF algorithm-specific parameters
   const double sdfAlgoZCut_;
   const double sdfAlgoBeta_;
+  /// - GHS algorithm-specific parameters
+  const double ghsAlgoAlpha_;
+  const double ghsAlgoOmega_;
   /// Flags for new flavour definition algorithm
   /// - General logic: require explicit configuration; will double-check if full gen particles collection is given.
   const bool enableSDFAlgoFlavour_;
+  const bool enableGHSAlgoFlavour_;
 
   const bool useSubjets_;
 
@@ -254,10 +282,14 @@ JetFlavourClustering::JetFlavourClustering(const edm::ParameterSet& iConfig)
 
       /// New jet flavour definition algorithm-specific parameters
       sdfAlgoZCut_(iConfig.exists("sdfAlgoZCut") ? iConfig.getParameter<double>("sdfAlgoZCut") : 0.1),
-      sdfAlgoBeta_(iConfig.exists("sdfAlgoBeta") ? iConfig.getParameter<double>("sdfAlgoBeta") : 0.0),
+      sdfAlgoBeta_(iConfig.exists("sdfAlgoBeta") ? iConfig.getParameter<double>("sdfAlgoBeta") : 1.0),
+      ghsAlgoAlpha_(iConfig.exists("ghsAlgoAlpha") ? iConfig.getParameter<double>("ghsAlgoAlpha") : 1.0),
+      ghsAlgoOmega_(iConfig.exists("ghsAlgoOmega") ? iConfig.getParameter<double>("ghsAlgoOmega") : 2.0),
       /// Flags for enabling new flavour definition algorithm. Double-check if full gen particles collection is given.
       enableSDFAlgoFlavour_(iConfig.exists("enableSDFAlgoFlavour") &&
                             iConfig.getParameter<bool>("enableSDFAlgoFlavour")),
+      enableGHSAlgoFlavour_(iConfig.exists("enableGHSAlgoFlavour") &&
+                            iConfig.getParameter<bool>("enableGHSAlgoFlavour")),
 
       useSubjets_(iConfig.exists("groomedJets") && iConfig.exists("subjets")),
       useLeptons_(iConfig.exists("leptons")),
@@ -289,16 +321,6 @@ JetFlavourClustering::JetFlavourClustering(const edm::ParameterSet& iConfig)
   }
   if (useLeptons_) {
     leptonsToken_ = consumes<reco::GenParticleRefVector>(iConfig.getParameter<edm::InputTag>("leptons"));
-  }
-  // Verify whether full GenParticle collection is given for new jet flavour definition algorithm.
-  if (enableFJContribFlavAlgo_ && !iConfig.existsAs<edm::InputTag>("fullGenParticles")) {
-    throw cms::Exception("Configuration")
-        << "New jet flavour definition algorithm requires full GenParticle collection, but it is not given in the "
-        << "configuration. Please provide full 'genParticles' via 'fullGenParticles' parameter.";
-  }
-  if (enableFJContribFlavAlgo_) {
-    fullGenParticlesToken_ = consumes<reco::GenParticleCollection>(
-        iConfig.getParameter<edm::InputTag>("fullGenParticles"));  // Input full gen particles collection
   }
 }
 
@@ -353,10 +375,17 @@ void JetFlavourClustering::produce(edm::Event& iEvent, const edm::EventSetup& iS
 
   // vector of constituents for reclustering jets and "ghosts"
   std::vector<fastjet::PseudoJet> fjInputs;
+  std::vector<fastjet::PseudoJet> fjInputsForGHSAlgo;
+  std::vector<fastjet::PseudoJet> fjGHSAlgoJetResults;
+  std::vector<int> fjGHSAlgoJetMatchingIndices;
   unsigned int reserve = jets->size() * 128 + bHadrons->size() + cHadrons->size() + partons->size();
   if (useLeptons_)
     reserve += leptons->size();
   fjInputs.reserve(reserve);
+  // reserve the vector of constituents for GHS algorithm
+  if (enableGHSAlgoFlavour_) {
+    fjInputsForGHSAlgo.reserve(reserve);
+  }
   // loop over all input jets and collect all their constituents
   for (edm::View<reco::Jet>::const_iterator it = jets->begin(); it != jets->end(); ++it) {
     std::vector<edm::Ptr<reco::Candidate>> constituents = it->getJetConstituents();
@@ -383,6 +412,14 @@ void JetFlavourClustering::produce(edm::Event& iEvent, const edm::EventSetup& iS
         fjInputs.push_back(fastjet::PseudoJet(constit->px(), constit->py(), constit->pz(), constit->energy()));
       }
     }
+  }
+  // copy the jets for GHS algorithm and add the "ghost" final partons
+  if (enableGHSAlgoFlavour_){
+    fjInputsForGHSAlgo = fjInputs;
+    // insert "ghost" final partons in the vector of constituents
+    insertGhostFinalPartons(partons, ghostRescaling_, fjInputsForGHSAlgo);
+    // Produce the GHS algorithm flavour information
+    makeGHSAlgoFlavour(fjInputsForGHSAlgo, jets, fjGHSAlgoJetMatchingIndices, fjGHSAlgoJetResults);
   }
   // insert "ghost" b hadrons in the vector of constituents
   insertGhosts(bHadrons, ghostRescaling_, true, true, false, false, fjInputs);
@@ -523,6 +560,17 @@ void JetFlavourClustering::produce(edm::Event& iEvent, const edm::EventSetup& iS
       // set the JetFlavourInfo for this jet
       (*jetFlavourInfos)[jets->refAt(i)] = reco::JetFlavourInfo(
           clusteredbHadrons, clusteredcHadrons, clusteredPartons, clusteredLeptons, hadronFlavour, partonFlavour);
+      
+      // begin setting the GHS algorithm flavour information
+      if (enableGHSAlgoFlavour_) {
+        // check if the GHS algorithm flavour information is available
+        if (fjGHSAlgoJetMatchingIndices.at(i) >= 0) {
+          // get the GHS algorithm flavour information
+          (*jetFlavourInfos)[jets->refAt(i)].setFJContribFlavAlgo(
+            JetFlavourInfo::FJContribFlavDef::kGHS,
+            FlavHistory::current_flavour_of(fjGHSAlgoJetResults.at(fjGHSAlgoJetMatchingIndices.at(i))));
+        }
+      }
     }
 
     // if subjets are used, determine their flavour
@@ -599,6 +647,28 @@ void JetFlavourClustering::insertGhosts(const edm::Handle<reco::GenParticleRefVe
     fastjet::PseudoJet p((*it)->px(), (*it)->py(), (*it)->pz(), (*it)->energy());
     p *= ghostRescaling;  // rescale particle momentum
     p.set_user_info(new GhostInfo(isHadron, isbHadron, isParton, isLepton, *it));
+    constituents.push_back(p);
+  }
+}
+
+// ------------ method that inserts "ghost" partons in the vector of jet constituents for GHS algorithm ------------
+void insertGhostFinalPartons(const edm::Handle<reco::GenParticleRefVector>& particles,
+                             const double ghostRescaling,
+                             std::vector<fastjet::PseudoJet>& constituents) {
+  // insert "ghost" partons in the vector of jet constituents
+  for (reco::GenParticleRefVector::const_iterator it = particles->begin(); it != particles->end(); ++it) {
+    if ((*it)->pt() == 0) {
+      edm::LogInfo("NullTransverseMomentum") << "dropping input ghost candidate with pt=0";
+      continue;
+    }
+    if (!isFinalParton(*it)) {
+      edm::LogInfo("NonFinalParton") << "dropping non-final parton candidate with pt=" << (*it)->pt()
+                                     << " and pdgId=" << (*it)->pdgId();
+      continue;  // skip non-final partons
+    }
+    fastjet::PseudoJet p((*it)->px(), (*it)->py(), (*it)->pz(), (*it)->energy());
+    p *= ghostRescaling;  // rescale particle momentum
+    p.set_user_info(new GhostFinalPartonInfo(*it, true));  // set user info for final parton
     constituents.push_back(p);
   }
 }
@@ -799,7 +869,67 @@ void JetFlavourClustering::assignToSubjets(const reco::GenParticleRefVector& clu
   }
 }
 
+// ------------ method check if the clustered parton is immediately before hadronization ------------
+bool JetFlavourClustering::isFinalParton(const GenParticleRef& particle){
+    // Require parton in the first place.
+  if (!particle.isNonnull() || !particle.isAvailable() || !CandMCTagUtils::isParton(*particle)) {
+    return false;
+  }
+  // Loop over daughters. Exclude particles that have parton daughters.
+  bool hasPartonDaughter = false;
+  for (size_t i = 0; i < particle->numberOfDaughters(); ++i) {
+    const reco::Candidate* daughter = particle->daughter(i);
+    if (daughter != nullptr && CandMCTagUtils::isParton(*daughter)) {
+      hasPartonDaughter = true;
+      break;
+    }
+  }
+  return !hasPartonDaughter;  // Return true if no parton daughters are found.
+}
+
+// ------------ method produce a list of partons without parton daughters ------------
+void JetFlavourClustering::makeFinalPartonSet(const reco::GenParticleRefVector& particles,
+                                                    reco::GenParticleRefVector& finalPartons) {
+  // Verify if finalPartons is empty.
+  if (!finalPartons.empty()) {
+    throw cms::Exception("FinalPartonsNotEmpty")
+        << "The vector of final partons is not empty. Please check the configuration.";
+  }
+  // Loop over particles and check if they are final partons.
+  for (const auto& particle : particles) {
+    if (isFinalParton(particle)) {
+      finalPartons.push_back(particle);  // Add final parton to the vector.
+    }
+  }
+}
+
+void JetFlavourClustering::makeGHSAlgoJets(
+                    const std::vector<fastjet::PseudoJet>& fjJetPartonInput,
+                    const edm::Handle<edm::View<reco::Jet> >& genJets,
+                    std::vector<int>& matchedIndices,
+                    std::vector<fastjet::PseudoJet>& ghsAlgoJetResult) {
+  // verify if output vectors are empty
+  if (!matchedIndices.empty() || !ghsAlgoJetResult.empty()) {
+    throw edm::LogError("GHSAlgoOutputVectorsNotEmpty")
+      << "The output vectors for GHS algorithm are not empty. Please check the configuration.";
+  }
+  // define basic reclustering sequence.        
+  ghsAlgoJetResult = run_GHS(fjJetPartonInput, jetPtMin_, ghsAlgoAlpha_, ghsAlgoBeta_, rParam_);
+  // Verify if the size of inclusiveJetsForGHSAlgo matches the size of genJets.
+  if (inclusiveJetsForGHSAlgo.size() < genJets->size()) {
+    throw edm::LogError("TooFewReclusteredJetsForGHSAlgo")
+      << "There are fewer reclustered (" << inclusiveJetsForGHSAlgo.size() << ") than original jets ("
+      << genJets->size() << ") for GHS algorithm. Please check that the jet algorithm and jet size match those used "
+         "for the original jet collection.";
+  }
+  std::vector<int> reclusteredIndicesFotrGHSAlgo;
+  matchReclusteredJets(genJets, inclusiveJetsForGHSAlgo, matchedIndices);
+}
+
+int JetFlavourClustering::encodeFJFlavInfo(const fastjet::contrib::FlavInfo& fjFlavInfo);
+
 // ------------ method makes SDF algorithm-flavoured jets to match original jets------------
+// Need a good rewrite.
 void JetFlavourClustering::makeSDFAlgoFlavouredJets(const edm::Handle<reco::GenParticleCollection>& a_fullGenParticles,
                                                           std::vector<fastjet::PseudoJet>& a_finalSDFAlgoFlavouredJets){
     // Verify if a_finalSDFAlgoFlavouredJets is empty.
@@ -823,7 +953,7 @@ void JetFlavourClustering::makeSDFAlgoFlavouredJets(const edm::Handle<reco::GenP
     // Clustering with current jet definition
     // [QUESTION] Do we have some more eleegant way to do this?
     a_finalSDFAlgoFlavouredJets = fjJetDefinition_->operator()(fullGenEvent);
-    sdfFlavCalc(a_finalSDFAlgoFlavouredJets);x
+    sdfFlavCalc(a_finalSDFAlgoFlavouredJets);
 }
 
 // ------------ method fills 'descriptions' with the allowed parameters for the module  ------------
