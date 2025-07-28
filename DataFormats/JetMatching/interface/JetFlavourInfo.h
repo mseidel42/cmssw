@@ -38,7 +38,7 @@ namespace reco {
     kSDF
   };
   // Number of fastjet::contrib flavour definition algorithms
-  static constexpr kFJContribFlavAlgoCount = 4;
+  static constexpr unsigned int kFJContribFlavAlgoCount = 4;
 
   class JetFlavourInfo {
   public:

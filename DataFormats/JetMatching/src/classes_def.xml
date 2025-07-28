@@ -1,5 +1,6 @@
 <lcgdict>
-  <class name="reco::JetFlavourInfo" ClassVersion="10">
+  <class name="reco::JetFlavourInfo" ClassVersion="11">
+   <version ClassVersion="11" checksum="2999411758"/>
    <version ClassVersion="10" checksum="1683584268"/>
   </class>
   <class name="std::vector<reco::JetFlavourInfo>"/>
@@ -8,7 +9,9 @@
   <class name="reco::JetFlavourInfoMatchingCollectionBase">
     <field name="transientVector_" transient="true"/>
   </class>
-  <class name="reco::JetFlavourInfoMatchingCollection" ClassVersion="11">
+  <class name="reco::JetFlavourInfoMatchingCollection" ClassVersion="13">
+   <version ClassVersion="13" checksum="2491721971"/>
+   <version ClassVersion="12" checksum="4063965645"/>
    <version ClassVersion="11" checksum="2491721971"/>
    <version ClassVersion="10" checksum="581152871"/>
     <!-- <field name="transientVector_" transient="true"/> -->
@@ -31,7 +34,9 @@
   <class name="reco::JetFlavourMatchingCollectionBase">
     <field name="transientVector_" transient="true"/>
   </class>
-  <class name="reco::JetFlavourMatchingCollection" ClassVersion="11">
+  <class name="reco::JetFlavourMatchingCollection" ClassVersion="13">
+   <version ClassVersion="13" checksum="392469271"/>
+   <version ClassVersion="12" checksum="2530184091"/>
    <version ClassVersion="11" checksum="392469271"/>
    <version ClassVersion="10" checksum="344297371"/>
     <!-- <field name="transientVector_" transient="true"/> -->
@@ -51,7 +56,9 @@
   <class name="reco::JetMatchedPartonsCollectionBase">
     <field name="transientVector_" transient="true"/>  
   </class>
-  <class name="reco::JetMatchedPartonsCollection" ClassVersion="11">
+  <class name="reco::JetMatchedPartonsCollection" ClassVersion="13">
+   <version ClassVersion="13" checksum="3945783503"/>
+   <version ClassVersion="12" checksum="189623934"/>
    <version ClassVersion="11" checksum="3945783503"/>
    <version ClassVersion="10" checksum="1343220703"/>
     <!-- <field name="transientVector_" transient="true"/> -->
