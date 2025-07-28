@@ -20,7 +20,6 @@
 
 #include "CommonTools/Utils/interface/StringCutObjectSelector.h"
 #include "CommonTools/Utils/interface/StringObjectFunction.h"
-
 class GenJetFlavourTableProducer : public edm::stream::EDProducer<> {
 public:
   explicit GenJetFlavourTableProducer(const edm::ParameterSet& iConfig)
@@ -48,6 +47,8 @@ public:
 private:
   void produce(edm::Event&, edm::EventSetup const&) override;
 
+  uint32_t fjContribFlavArrayToInt(const std::vector<int>& fjContribFlav) const;
+
   std::string name_;
   edm::EDGetTokenT<std::vector<reco::GenJet> > src_;
   const StringCutObjectSelector<reco::GenJet> cut_;
@@ -65,6 +66,8 @@ void GenJetFlavourTableProducer::produce(edm::Event& iEvent, const edm::EventSet
   std::vector<uint8_t> hadronFlavour;
   std::vector<uint8_t> nBHadrons;
   std::vector<uint8_t> nCHadrons;
+  // fastjet::contrib flavour info
+  std::vector<uint32_t> fjContribGHSAlgoFlav;
 
   for (const reco::GenJet& jet : jetsProd) {
     if (!cut_(jet))
@@ -77,6 +80,13 @@ void GenJetFlavourTableProducer::produce(edm::Event& iEvent, const edm::EventSet
         hadronFlavour.push_back(jetFlavourInfoMatching.second.getHadronFlavour());
         nBHadrons.push_back(jetFlavourInfoMatching.second.getbHadrons().size());
         nCHadrons.push_back(jetFlavourInfoMatching.second.getcHadrons().size());
+        // fastjet::contrib flavour info
+        if (jetFlavourInfoMatching.second.haveFJContribFlavAlgo(reco::FJContribFlavDef::kGHS)) {
+          fjContribGHSAlgoFlav.push_back(
+            fjContribFlavArrayToInt(jetFlavourInfoMatching.second.getFJContribFlavAlgo(reco::FJContribFlavDef::kGHS)));
+        } else {
+          fjContribGHSAlgoFlav.push_back(0);
+        }
         matched = true;
         break;
       }
@@ -86,6 +96,8 @@ void GenJetFlavourTableProducer::produce(edm::Event& iEvent, const edm::EventSet
       hadronFlavour.push_back(0);
       nBHadrons.push_back(0);
       nCHadrons.push_back(0);
+      // fastjet::contrib flavour info
+      fjContribGHSAlgoFlav.push_back(0);
     }
   }
 
@@ -94,8 +106,30 @@ void GenJetFlavourTableProducer::produce(edm::Event& iEvent, const edm::EventSet
   tab->addColumn<uint8_t>("hadronFlavour", hadronFlavour, "flavour from hadron ghost clustering");
   tab->addColumn<uint8_t>("nBHadrons", nBHadrons, "number of b-hadrons");
   tab->addColumn<uint8_t>("nCHadrons", nCHadrons, "number of c-hadrons");
+  tab->addColumn<uint32_t>("fjContribGHSAlgoFlav", fjContribGHSAlgoFlav,
+                           "fastjet::contrib GHS flavour info, encoded as integer");
 
   iEvent.put(std::move(tab));
+}
+
+/// ------------- Convert fastjet::contrib flavour algo result from array to integer -------------
+uint32_t GenJetFlavourTableProducer::fjContribFlavArrayToInt(const std::vector<int>& fjContribFlav) const {
+  /// Coding rule: lowest 3 bits for 0th element from the array, the flag;
+  ///              then 4 bits from lowest to highest, in the order "d, u, s, c, b, t"
+  ///              For each flavour, highest bit 0/1 is q/qbar,
+  ///              and next 3 bits are "none, 1, 2, 3, 4, 5, even and >=6, odd and >=7"
+  uint32_t result = static_cast<uint32_t>(fjContribFlav[0] & 0x7);
+  uint32_t flavAbs = 0;
+  for (unsigned int i = 1; i < fjContribFlav.size(); ++i) {
+    flavAbs = static_cast<uint32_t>(fjContribFlav[i] > 0 ? fjContribFlav[i] : -fjContribFlav[i]);
+    if (flavAbs > 7)
+      flavAbs = (6 | ((fjContribFlav[i] & 1))); // even or odd and >= 6
+    // Handle the sign.
+    if (fjContribFlav[i] < 0)
+      flavAbs |= (1 << 3); // set the sign bit for qbar
+    result |= (flavAbs << (4 * i - 1));
+  }
+  return result;
 }
 
 #include "FWCore/Framework/interface/MakerMacros.h"
