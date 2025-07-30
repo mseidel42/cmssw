@@ -44,7 +44,8 @@ genJetFlavourAssociation = cms.EDProducer("JetFlavourClustering",
     jetAlgorithm = cms.string("AntiKt"),
     rParam = cms.double(0.4),
     ghostRescaling = cms.double(1e-18),
-    hadronFlavourHasPriority = cms.bool(False)
+    hadronFlavourHasPriority = cms.bool(False),
+    enableGHSAlgoFlavour = cms.bool(True)
 )
 
 genJetFlavourTable = cms.EDProducer("GenJetFlavourTableProducer",
@@ -74,7 +75,8 @@ genJetAK8FlavourAssociation = cms.EDProducer("JetFlavourClustering",
     jetAlgorithm = cms.string("AntiKt"),
     rParam = cms.double(0.8),
     ghostRescaling = cms.double(1e-18),
-    hadronFlavourHasPriority = cms.bool(False)
+    hadronFlavourHasPriority = cms.bool(False),
+    enableGHSAlgoFlavour = cms.bool(True)
 )
 
 genJetAK8FlavourTable = cms.EDProducer("GenJetFlavourTableProducer",
