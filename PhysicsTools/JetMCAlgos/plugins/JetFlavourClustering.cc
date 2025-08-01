@@ -102,8 +102,6 @@
 #include "fastjet/Selector.hh"
 #include "fastjet/PseudoJet.hh"
 
-/// Include SDF algorithm as a jet flavour definition
-#include "fastjet/contrib/SDFPlugin.hh"
 #include "fastjet/contrib/GHSAlgo.hh"
 #include "fastjet/contrib/FlavInfo.hh"
 
@@ -204,12 +202,21 @@ private:
                         const fastjet::contrib::FlavRecombiner&   ghsAlgoFlavRecombiner,
                         std::vector<int>&                                       matchedIndices,
                         std::vector<fastjet::PseudoJet>&                        fjGHSAlgoJetResults);
-  void JetFlavourClustering::makeGHSAlgoJetsWithGhostBackscale(
-                        const std::vector<fastjet::PseudoJet>&                  fjJetPartonInput,
-                        const edm::Handle<edm::View<reco::Jet> >&               genJets,
-                        const fastjet::contrib::FlavRecombiner&                 ghsAlgoFlavRecombiner_,
-                        std::vector<int>&                                       matchedIndices,
-                        std::vector<fastjet::PseudoJet>&                        ghsAlgoJetResult);
+  // A "full-chain" function to make GHS algorithm jets
+  void makeGHSAlgoJets( const edm::Handle<edm::View<reco::Jet> >&       inputGenJets,
+                        const edm::Handle<reco::GenParticleRefVector>&  inputGenPartons,
+                        const fastjet::contrib::FlavRecombiner&         ghsAlgoFlavRecombiner,
+                        std::vector<int>&                               matchedIndices,
+                        std::vector<fastjet::PseudoJet>&                outputGHSAlgoJets);
+
+  void makeJetsAndIndexedFlavouredFinalPartons(
+      const std::vector<fastjet::PseudoJet>& inputJetAndGhostFinalPartons,
+            std::vector<fastjet::PseudoJet>& outputJetsAndIndexedFlavouredFinalPartons);
+
+  void runGHSFlavDressing(
+      const std::vector<fastjet::PseudoJet>& inputJetAndIndexedFlavouredFinalPartons,
+            std::vector<fastjet::PseudoJet>& outputGHSFlavDressedJets
+  )
 
   int encodeFJFlavInfo(const fastjet::contrib::FlavInfo& fjFlavInfo);
 
@@ -217,9 +224,6 @@ private:
 
   void makeFinalPartonSet(const reco::GenParticleRefVector& particles,
                                 reco::GenParticleRefVector& finalPartons);
-
-  void makeSDFAlgoFlavouredJets(const edm::Handle<reco::GenParticleCollection>& a_fullGenParticles,
-                                      std::vector<fastjet::PseudoJet>&          a_finalSDFAlgoFlavouredJets);
 
   void assignToSubjets(const reco::GenParticleRefVector& clusteredParticles,
                        const edm::Handle<edm::View<reco::Jet>>& subjets,
@@ -244,9 +248,6 @@ private:
   const bool hadronFlavourHasPriority_;
 
   /// New flavour definition algorithm-specific parameters
-  /// - SDF algorithm-specific parameters
-  const double sdfAlgoZCut_;
-  const double sdfAlgoBeta_;
   /// - GHS algorithm-specific parameters
   const double ghsAlgoAlpha_;
   const double ghsAlgoOmega_;
@@ -255,7 +256,6 @@ private:
   std::shared_ptr<fastjet::contrib::FlavRecombiner> ghsAlgoFlavRecombinerPtr_;
   /// Flags for new flavour definition algorithm
   /// - General logic: require explicit configuration; will double-check if full gen particles collection is given.
-  const bool enableSDFAlgoFlavour_;
   const bool enableGHSAlgoFlavour_;
 
   const bool useSubjets_;
@@ -295,8 +295,6 @@ JetFlavourClustering::JetFlavourClustering(const edm::ParameterSet& iConfig)
       hadronFlavourHasPriority_(iConfig.getParameter<bool>("hadronFlavourHasPriority")),
 
       /// New jet flavour definition algorithm-specific parameters
-      sdfAlgoZCut_(iConfig.exists("sdfAlgoZCut") ? iConfig.getParameter<double>("sdfAlgoZCut") : 0.1),
-      sdfAlgoBeta_(iConfig.exists("sdfAlgoBeta") ? iConfig.getParameter<double>("sdfAlgoBeta") : 1.0),
       ghsAlgoAlpha_(iConfig.exists("ghsAlgoAlpha") ? iConfig.getParameter<double>("ghsAlgoAlpha") : 1.0),
       ghsAlgoOmega_(iConfig.exists("ghsAlgoOmega") ? iConfig.getParameter<double>("ghsAlgoOmega") : 2.0),
       /// Choosing the flavour summation scheme for Fastjet-contrib Flavour Definition algorithms
@@ -305,14 +303,12 @@ JetFlavourClustering::JetFlavourClustering(const edm::ParameterSet& iConfig)
               ? iConfig.getParameter<std::string>("ghsAlgoFlavSummationScheme")
               : "net_flav"),
       /// Flags for enabling new flavour definition algorithm. Double-check if full gen particles collection is given.
-      enableSDFAlgoFlavour_(iConfig.exists("enableSDFAlgoFlavour") &&
-                            iConfig.getParameter<bool>("enableSDFAlgoFlavour")),
       enableGHSAlgoFlavour_(iConfig.exists("enableGHSAlgoFlavour") &&
                             iConfig.getParameter<bool>("enableGHSAlgoFlavour")),
 
       useSubjets_(iConfig.exists("groomedJets") && iConfig.exists("subjets")),
       useLeptons_(iConfig.exists("leptons")),
-      enableFJContribFlavAlgo_(enableSDFAlgoFlavour_)
+      enableFJContribFlavAlgo_(enableGHSAlgoFlavour_)
 
 {
   // register your products
@@ -1000,71 +996,6 @@ void JetFlavourClustering::makeGHSAlgoJets(
          "for the original jet collection.";
   }
   matchReclusteredJets(genJets, ghsAlgoJetResult, matchedIndices);
-}
-
-void JetFlavourClustering::makeGHSAlgoJetsWithGhostBackscale(
-                    const std::vector<fastjet::PseudoJet>&  fjJetPartonInput,
-                    const edm::Handle<edm::View<reco::Jet> >& genJets,
-                    const fastjet::contrib::FlavRecombiner&   ghsAlgoFlavRecombiner_,
-                    std::vector<int>& matchedIndices,
-                    std::vector<fastjet::PseudoJet>& ghsAlgoJetResult) {
-  // verify if output vectors are empty
-  if (!matchedIndices.empty() || !ghsAlgoJetResult.empty()) {
-    edm::LogError("GHSAlgoOutputVectorsNotEmpty")
-      << "The output vectors for GHS algorithm are not empty. Please check the configuration.";
-  }
-  // define basic reclustering sequence.
-  ClusterSequencePtr baseClusterSeq = std::make_shared<fastjet::ClusterSequence>(fjJetPartonInput, *fjJetDefinition_);
-  std::vector<fastjet::PseudoJet> fjInputsForGHSAlgo = fastjet::sorted_by_pt(baseClusterSeq->inclusive_jets(jetPtMin_));
-  // conduct final reclustering with GHS algorithm.
-  /// [DEBUG] Verify number of jets before GHS algorithm
-  std::cout << ">>> [DEBUG] Jets for GHS algorithm have " << fjInputsForGHSAlgo.size()
-            << " constituents before reclustering." << std::endl;
-  /// [DEBUG] Verify properties of fjInputsForGHSAlgo is missing some components.
-  std::cout << ">>> [DEBUG] Number of particles specified by the cluster sequence: "
-            << fjInputsForGHSAlgo[0].associated_cs()->n_particles() << std::endl;
-  
-  ghsAlgoJetResult = fastjet::contrib::run_GHS(fjInputsForGHSAlgo, jetPtMin_, ghsAlgoAlpha_, ghsAlgoOmega_, ghsAlgoFlavRecombiner_);
-  /// [DEBUG] Verify number of reclustered jets for GHS algorithm
-  std::cout << ">>> [DEBUG] GHS algorithm reclustered jets have " << ghsAlgoJetResult.size()
-            << " constituents after reclustering." << std::endl;
-  // Verify if the size of fjJetPartonInput matches the size of genJets.
-  if (ghsAlgoJetResult.size() < genJets->size()) {
-    edm::LogError("TooFewReclusteredJetsForGHSAlgo")
-      << "There are fewer reclustered (" << ghsAlgoJetResult.size() << ") than original jets ("
-      << genJets->size() << ") for GHS algorithm. Please check that the jet algorithm and jet size match those used "
-         "for the original jet collection.";
-  }
-  matchReclusteredJets(genJets, ghsAlgoJetResult, matchedIndices);
-}
-
-
-// ------------ method makes SDF algorithm-flavoured jets to match original jets------------
-// Need a good rewrite.
-void JetFlavourClustering::makeSDFAlgoFlavouredJets(const edm::Handle<reco::GenParticleCollection>& a_fullGenParticles,
-                                                          std::vector<fastjet::PseudoJet>& a_finalSDFAlgoFlavouredJets){
-    // Verify if a_finalSDFAlgoFlavouredJets is empty.
-    if (!a_finalSDFAlgoFlavouredJets.empty()) {
-      throw cms::Exception("SDFAlgoFlavouredJetsNotEmpty")
-          << "The vector of SDF algorithm-flavoured jets is not empty. Please check the configuration.";
-    }
-    // Class for SDF flavour calculation
-    fastjet::contrib::SDFlavourCalc sdfFlavCalc(sdfAlgoBeta_, sdfAlgoZCut_, rParam_);
-    // Convert the full gen particles to std::vector<fastjet::PseudoJet>.
-    auto fullGenParticleProduct = a_fullGenParticles.product();
-    std::vector<fastjet::PseudoJet> fullGenEvent;
-    for (const auto& particle : *fullGenParticleProduct) {
-      if (particle.status() != 1) {
-        continue;  // only consider final state particles
-      }
-      fastjet::PseudoJet pseudoJet(particle.px(), particle.py(), particle.pz(), particle.energy());
-      pseudoJet.set_user_info(new fastjet::contrib::FlavHistory(particle.pdgId()));
-      fullGenEvent.push_back(pseudoJet);
-    }
-    // Clustering with current jet definition
-    // [QUESTION] Do we have some more eleegant way to do this?
-    a_finalSDFAlgoFlavouredJets = fjJetDefinition_->operator()(fullGenEvent);
-    sdfFlavCalc(a_finalSDFAlgoFlavouredJets);
 }
 
 // ------------ method fills 'descriptions' with the allowed parameters for the module  ------------
