@@ -35,11 +35,11 @@
 
 #include "fastjet/contrib/FlavInfo.hh"
 
-FASTJET_BEGIN_NAMESPACE      // defined in fastjet/internal/base.hh
-
-namespace contrib{
+namespace reco{
 
   using namespace std;
+  using namespace fastjet;
+  using namespace fastjet::contrib;
 
   const double _deltaR2_handover =
       pow(std::numeric_limits<double>::epsilon(), 0.5);
@@ -437,6 +437,4 @@ namespace contrib{
     return final_jets;
   }
 
-} // namespace contrib
-
-FASTJET_END_NAMESPACE
+} // namespace reco

@@ -36,9 +36,7 @@
 
 #include "fastjet/contrib/FlavInfo.hh"
 
-FASTJET_BEGIN_NAMESPACE      // defined in fastjet/internal/base.hh
-
-namespace contrib{
+namespace reco{
 
   /// given a list of base-jets (before applying a hardness cut) in
   /// the event (jets_base), return the jets with "dressed" flavour information
