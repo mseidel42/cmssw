@@ -28,6 +28,7 @@
 #include <fastjet/internal/base.hh>
 
 #include <iostream>
+#include <iomanip>
 
 #ifndef __FJC_FLAVINFO_USEFJCORE__
 #include "fastjet/NNH.hh"
@@ -35,6 +36,9 @@
 #endif
 
 #include "fastjet/contrib/FlavInfo.hh"
+
+#define VERBOSEDIJ
+#define VERBOSE
 
 namespace reco{
   using namespace std;
@@ -65,29 +69,7 @@ namespace reco{
 
 #ifdef VERBOSEDIJ
   void print_PJ(ostream * ostr, const PseudoJet &p, unsigned precision,
-                bool short_version, bool final_flav) {
-    (*ostr).precision(precision);
-    (*ostr) << std::setw(precision + 8) << p.px() << std::setw(precision + 8) << p.py()
-            << std::setw(precision + 8) << p.pz() << std::setw(precision + 8) << p.E()
-            << std::setw(precision + 8) << p.pt() << std::setw(precision + 8) << p.rap()
-            << std::setw(precision + 8) << p.phi() << std::setw(precision + 8) << p.m()
-            << std::setw(6) << p.user_index();
-#ifdef PRINTMASSFLAVINFO
-    (*ostr) << std::setw(6) << p.has_user_info<MassFlavHistory>();
-#else
-    (*ostr) << std::setw(6) << "";
-#endif
-    if (p.has_user_info<FlavHistory>()) {
-      if (final_flav)
-        (*ostr) << std::setw(14) << FlavHistory::current_flavour_of(p).description();
-      else
-        (*ostr) << std::setw(14) << FlavHistory::initial_flavour_of(p).description();
-      // cout << json(FlavHistory::current_flavour_of(p)) << endl;
-    }
-    if (!short_version) {
-      (*ostr) << std::setw(6) << p.cluster_hist_index();
-    }
-  }
+                bool short_version, bool final_flav);
 #endif
 
   struct GHSInfo {
