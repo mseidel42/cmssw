@@ -457,11 +457,9 @@ void JetFlavourClustering::produce(edm::Event& iEvent, const edm::EventSetup& iS
     // Produce the GHS algorithm flavour information
     makeGHSAlgoJets(fjInputsForGHSAlgo, jets, fjGHSAlgoJetMatchingIndices,
                     fjGHSAlgoJetResults);
-    std::cout << std::endl;
     // Produce the GHS algorithm flavoured jets with refactored code.
     makeGHSAlgoJets(jets, partons, fjRefactoredGHSAlgoJetMatchingIndices,
                     fjRefactoredGHSAlgoJetResults);
-    std::cout << std::endl;
   }
   // insert "ghost" b hadrons in the vector of constituents
   insertGhosts(bHadrons, ghostRescaling_, true, true, false, false, fjInputs);
