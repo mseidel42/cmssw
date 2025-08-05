@@ -103,7 +103,7 @@
 #include "fastjet/Selector.hh"
 #include "fastjet/PseudoJet.hh"
 
-#include "PhysicsTools/JetMCAlgos/plugins/GHSAlgo.hh"
+#include "PhysicsTools/JetMCAlgos/interface/GHSAlgo.h"
 #include "fastjet/contrib/FlavInfo.hh"
 
 #include "fastjet/NNH.hh"

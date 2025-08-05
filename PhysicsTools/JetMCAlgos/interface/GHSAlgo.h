@@ -22,8 +22,8 @@
 // along with this code. If not, see <http://www.gnu.org/licenses/>.
 //----------------------------------------------------------------------
 
-#ifndef __GHSPLUGIN_HH__
-#define __GHSPLUGIN_HH__
+#ifndef PhysicsTools_JetMCAlgos_GHSAlgo_H
+#define PhysicsTools_JetMCAlgos_GHSAlgo_H
 
 #include <fastjet/internal/base.hh>
 
