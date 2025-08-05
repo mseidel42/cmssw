@@ -104,9 +104,9 @@
 #include "fastjet/PseudoJet.hh"
 
 #include "PhysicsTools/JetMCAlgos/plugins/GHSAlgo.hh"
-#include "fastjet/contrib/GHSAlgo.hh"
 #include "fastjet/contrib/FlavInfo.hh"
 
+#include "fastjet/NNH.hh"
 
 
 //
@@ -204,18 +204,6 @@ private:
                         std::vector<int>&                               matchedIndices,
                         std::vector<fastjet::PseudoJet>&                outputGHSAlgoJets);
 
-  void makeJetsAndIndexedFlavouredFinalPartons(
-      const std::vector<fastjet::PseudoJet>& inputJetsAndGhostFinalPartons,
-            std::vector<fastjet::PseudoJet>& outputHardJetsFromCS,
-            std::vector<fastjet::PseudoJet>& outputFinalJetsFromCS,
-            std::vector<fastjet::PseudoJet>& outputJetsAndIndexedFlavouredFinalPartons);
-
-  void runGHSFlavDressing(
-      const std::vector<fastjet::PseudoJet>& inputJetsAndIndexedFlavouredFinalPartons,
-      const std::vector<fastjet::PseudoJet>& inputHardJetsFromCS,
-      const std::vector<fastjet::PseudoJet>& inputFinalJetsFromCS,
-            std::vector<fastjet::PseudoJet>& outputGHSFlavDressedJets
-  );
 
   int encodeFJFlavInfo(const fastjet::contrib::FlavInfo& fjFlavInfo);
 
@@ -1008,7 +996,7 @@ void JetFlavourClustering::makeGHSAlgoJets( const edm::Handle<edm::View<reco::Je
     double dij = nnh.dij_min(iA, iB);
     // LS-2023-02-10: not sure this is very safe...
     // if (dij > 0.9*numeric_limits<double>::max()) {
-    if (dij == numeric_limits<double>::max()) {
+    if (dij == std::numeric_limits<double>::max()) {
       break;
     }
     if (iB >= 0) {
@@ -1020,7 +1008,7 @@ void JetFlavourClustering::makeGHSAlgoJets( const edm::Handle<edm::View<reco::Je
         // (note that through the shared pointer, this also affects the
         // flavour of the objects in the NNH object -- which is dangerous --
         // one should really remove the jet and add it back in)
-        fastjet::contrib::FlavInfo flavB = jetAndPartons[iB].user_info<FlavHistory>().current_flavour();
+        fastjet::contrib::FlavInfo flavB = jetAndPartons[iB].user_info<fastjet::contrib::FlavHistory>().current_flavour();
         finalJetsFlavInfo[iA] = finalJetsFlavInfo[iA] + flavB;
         ghsAlgoFlavRecombinerPtr_->apply_summation_choice(finalJetsFlavInfo[iA]);
         nnh.remove_jet(iB);
@@ -1043,7 +1031,7 @@ void JetFlavourClustering::makeGHSAlgoJets( const edm::Handle<edm::View<reco::Je
             fastjet::contrib::FlavHistory::current_flavour_of(jetAndPartons[iB]);
         ghsAlgoFlavRecombinerPtr_->apply_summation_choice(flav);
         /// set FlavInfo attribute
-        mergedFlavoured.set_user_info(new FlavHistory(flav));
+        mergedFlavoured.set_user_info(new fastjet::contrib::FlavHistory(flav));
         jetAndPartons.push_back(mergedFlavoured);
         nnh.merge_jets(iA, iB, mergedFlavoured, jetAndPartons.size() - 1);
       }

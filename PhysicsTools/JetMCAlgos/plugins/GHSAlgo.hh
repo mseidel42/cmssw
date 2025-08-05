@@ -28,6 +28,7 @@
 #include <fastjet/internal/base.hh>
 
 #include <iostream>
+#include <iomanip>
 
 #ifndef __FJC_FLAVINFO_USEFJCORE__
 #include "fastjet/NNH.hh"
@@ -215,30 +216,30 @@ class GHSBriefJet {
   double _diB, _pt2, _rap, _phi, _nx, _ny;
 };
 
-void print_PJ(std::ostream * ostr, const PseudoJet &p, unsigned precision,
-                bool short_version, bool final_flav) {
-    (*ostr).precision(precision);
-    (*ostr) << setw(precision + 8) << p.px() << setw(precision + 8) << p.py()
-            << setw(precision + 8) << p.pz() << setw(precision + 8) << p.E()
-            << setw(precision + 8) << p.pt() << setw(precision + 8) << p.rap()
-            << setw(precision + 8) << p.phi() << setw(precision + 8) << p.m()
-            << setw(6) << p.user_index();
-#ifdef PRINTMASSFLAVINFO
-    (*ostr) << setw(6) << p.has_user_info<MassFlavHistory>();
-#else
-    (*ostr) << setw(6) << "";
-#endif
-    if (p.has_user_info<FlavHistory>()) {
-      if (final_flav)
-        (*ostr) << setw(14) << FlavHistory::current_flavour_of(p).description();
-      else
-        (*ostr) << setw(14) << FlavHistory::initial_flavour_of(p).description();
-      // cout << json(FlavHistory::current_flavour_of(p)) << endl;
-    }
-    if (!short_version) {
-      (*ostr) << setw(6) << p.cluster_hist_index();
-    }
-  }
+// void print_PJ(std::ostream * ostr, const PseudoJet &p, unsigned precision,
+//                 bool short_version, bool final_flav) {
+//     (*ostr).precision(precision);
+//     (*ostr) << setw(precision + 8) << p.px() << setw(precision + 8) << p.py()
+//             << setw(precision + 8) << p.pz() << setw(precision + 8) << p.E()
+//             << setw(precision + 8) << p.pt() << setw(precision + 8) << p.rap()
+//             << setw(precision + 8) << p.phi() << setw(precision + 8) << p.m()
+//             << setw(6) << p.user_index();
+// #ifdef PRINTMASSFLAVINFO
+//     (*ostr) << setw(6) << p.has_user_info<MassFlavHistory>();
+// #else
+//     (*ostr) << setw(6) << "";
+// #endif
+//     if (p.has_user_info<FlavHistory>()) {
+//       if (final_flav)
+//         (*ostr) << setw(14) << FlavHistory::current_flavour_of(p).description();
+//       else
+//         (*ostr) << setw(14) << FlavHistory::initial_flavour_of(p).description();
+//       // cout << json(FlavHistory::current_flavour_of(p)) << endl;
+//     }
+//     if (!short_version) {
+//       (*ostr) << setw(6) << p.cluster_hist_index();
+//     }
+//   }
 
 /// given a list of base-jets (before applying a hardness cut) in
 /// the event (jets_base), return the jets with "dressed" flavour information
