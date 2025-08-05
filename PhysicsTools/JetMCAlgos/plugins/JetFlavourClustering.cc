@@ -418,8 +418,6 @@ void JetFlavourClustering::produce(edm::Event& iEvent, const edm::EventSetup& iS
   // reserve the vector of constituents for GHS algorithm
   if (enableGHSAlgoFlavour_) {
     fjInputsForGHSAlgo.reserve(reserve);
-    /// [DEBUG]
-    puts(">>> [DEBUG] GHS Algorithm enabled, reserving space for GHS algorithm constituents.");
   }
   // loop over all input jets and collect all their constituents
   for (edm::View<reco::Jet>::const_iterator it = jets->begin(); it != jets->end(); ++it) {
@@ -454,32 +452,15 @@ void JetFlavourClustering::produce(edm::Event& iEvent, const edm::EventSetup& iS
   }
   // copy the jets for GHS algorithm and add the "ghost" final partons
   if (enableGHSAlgoFlavour_) {
-    /// [DEBUG] Verify number of partons inserted for GHS algorithm
-    std::cout << ">>> [DEBUG] Jets for GHS algorithm have " << fjInputsForGHSAlgo.size()
-              << " constituents before inserting ghosts." << std::endl;
-
     // insert "ghost" final partons in the vector of constituents
     insertGhostFinalPartons(partons, ghostRescaling_, fjInputsForGHSAlgo);
-    /// [DEBUG] Verify number of partons inserted for GHS algorithm
-    std::cout << ">>> [DEBUG] Jets for GHS algorithm have " << fjInputsForGHSAlgo.size()
-              << " constituents after inserting ghosts." << std::endl;
     // Produce the GHS algorithm flavour information
     makeGHSAlgoJets(fjInputsForGHSAlgo, jets, fjGHSAlgoJetMatchingIndices,
                     fjGHSAlgoJetResults);
-    /// [DEBUG] Verify matching indices.
-    std::cout << ">>> [DEBUG] GHS algorithm matching indices: ";
-    for (int k = 0; k < static_cast<int>(fjGHSAlgoJetMatchingIndices.size()); ++k) {
-      std::cout << k << "->" << fjGHSAlgoJetMatchingIndices[k] << " ";
-    }
     std::cout << std::endl;
     // Produce the GHS algorithm flavoured jets with refactored code.
     makeGHSAlgoJets(jets, partons, fjRefactoredGHSAlgoJetMatchingIndices,
                     fjRefactoredGHSAlgoJetResults);
-    /// [DEBUG] Verify matching indices.
-    std::cout << ">>> [DEBUG] [REFACTORED] GHS algorithm refactored matching indices: ";
-    for (int k = 0; k < static_cast<int>(fjRefactoredGHSAlgoJetMatchingIndices.size()); ++k) {
-      std::cout << k << "->" << fjRefactoredGHSAlgoJetMatchingIndices[k] << " ";
-    }
     std::cout << std::endl;
   }
   // insert "ghost" b hadrons in the vector of constituents
@@ -621,40 +602,19 @@ void JetFlavourClustering::produce(edm::Event& iEvent, const edm::EventSetup& iS
       // set the JetFlavourInfo for this jet
       (*jetFlavourInfos)[jets->refAt(i)] = reco::JetFlavourInfo(
           clusteredbHadrons, clusteredcHadrons, clusteredPartons, clusteredLeptons, hadronFlavour, partonFlavour);
-      std::cout << ">>> [DEBUG] Conventional JetFlavourInfo for jet " << i << " set." << std::endl;
-      std::cout << ">>>         b hadrons: " << clusteredbHadrons.size() << ", c hadrons: " << clusteredcHadrons.size() << std::endl;
-      std::cout << ">>>         partonFlavour: " << (*jetFlavourInfos)[jets->refAt(i)].getPartonFlavour() << ", hadronFlavour: " << (*jetFlavourInfos)[jets->refAt(i)].getHadronFlavour() << std::endl;
       // begin setting the GHS algorithm flavour information
       if (enableGHSAlgoFlavour_) {
-        std::cout << ">>> [DEBUG] GHS Algorithm enabled, setting GHS algorithm flavour information." << std::endl;
         // check if the GHS algorithm flavour information is available
         if (fjGHSAlgoJetMatchingIndices.at(i) >= 0) {
           // get the GHS algorithm flavour information
-          std::cout << ">>> [DEBUG] GHS Algorithm flavour information available for jet " << i << std::endl;
-          std::cout << ">>>         Final flavour:" << fastjet::contrib::FlavHistory::current_flavour_of(fjGHSAlgoJetResults.at(fjGHSAlgoJetMatchingIndices.at(i))).description() << std::endl;
           (*jetFlavourInfos)[jets->refAt(i)].setFJContribFlavAlgo(
             reco::FJContribFlavDef::kGHS,
             fastjet::contrib::FlavHistory::current_flavour_of(fjGHSAlgoJetResults.at(fjGHSAlgoJetMatchingIndices.at(i))));
-          std::cout << ">>> [DEBUG] GHS Algorithm flavour information set for jet " << i << std::endl;
-          std::cout << ">>>         " << (*jetFlavourInfos)[jets->refAt(i)].getFJContribFlavAlgo(reco::FJContribFlavDef::kGHS)[0];
-          for (size_t k = 1; k < 7; ++k) {
-            std::cout << ", " << (*jetFlavourInfos)[jets->refAt(i)].getFJContribFlavAlgo(reco::FJContribFlavDef::kGHS)[k];
-          }
-          std::cout << std::endl;
         }
         if (fjRefactoredGHSAlgoJetMatchingIndices.at(i) >= 0) {
-          // get the refactored GHS algorithm flavour information
-          std::cout << ">>> [DEBUG] [REFACTORED] GHS Algorithm flavour information available for jet " << i << std::endl;
-          std::cout << ">>>                      Final flavour:" << fastjet::contrib::FlavHistory::current_flavour_of(fjRefactoredGHSAlgoJetResults.at(fjRefactoredGHSAlgoJetMatchingIndices.at(i))).description() << std::endl;
           (*jetFlavourInfos)[jets->refAt(i)].setFJContribFlavAlgo(
             reco::FJContribFlavDef::kGHS,
             fastjet::contrib::FlavHistory::current_flavour_of(fjRefactoredGHSAlgoJetResults.at(fjRefactoredGHSAlgoJetMatchingIndices.at(i))));
-          std::cout << ">>> [DEBUG] [REFACTORED] GHS Algorithm flavour information set for jet " << i << std::endl;
-          std::cout << ">>>         " << (*jetFlavourInfos)[jets->refAt(i)].getFJContribFlavAlgo(reco::FJContribFlavDef::kGHS)[0];
-          for (size_t k = 1; k < 7; ++k) {
-            std::cout << ", " << (*jetFlavourInfos)[jets->refAt(i)].getFJContribFlavAlgo(reco::FJContribFlavDef::kGHS)[k];
-          }
-          std::cout << std::endl;
         }
       }
     }
@@ -1009,17 +969,7 @@ void JetFlavourClustering::makeGHSAlgoJets(
   ClusterSequencePtr baseClusterSeq = std::make_shared<fastjet::ClusterSequence>(fjJetPartonInput, *fjJetDefinition_);
   std::vector<fastjet::PseudoJet> fjInputsForGHSAlgo = fastjet::sorted_by_pt(baseClusterSeq->inclusive_jets(jetPtMin_));
   // conduct final reclustering with GHS algorithm.
-  /// [DEBUG] Verify number of jets before GHS algorithm
-  std::cout << ">>> [DEBUG] Jets for GHS algorithm have " << fjInputsForGHSAlgo.size()
-            << " constituents before reclustering." << std::endl;
-  /// [DEBUG] Verify properties of fjInputsForGHSAlgo is missing some components.
-  std::cout << ">>> [DEBUG] Number of particles specified by the cluster sequence: "
-            << fjInputsForGHSAlgo[0].associated_cs()->n_particles() << std::endl;
-  
   ghsAlgoJetResult = fastjet::contrib::run_GHS(fjInputsForGHSAlgo, jetPtMin_, ghsAlgoAlpha_, ghsAlgoOmega_, *ghsAlgoFlavRecombinerPtr_);
-  /// [DEBUG] Verify number of reclustered jets for GHS algorithm
-  std::cout << ">>> [DEBUG] GHS algorithm reclustered jets have " << ghsAlgoJetResult.size()
-            << " constituents after reclustering." << std::endl;
   // Verify if the size of fjJetPartonInput matches the size of genJets.
   if (ghsAlgoJetResult.size() < genJets->size()) {
     edm::LogError("TooFewReclusteredJetsForGHSAlgo")
@@ -1046,30 +996,15 @@ void JetFlavourClustering::makeGHSAlgoJets( const edm::Handle<edm::View<reco::Je
     jetAndGhostPartons.push_back(fjJet);
     // Not inserting flavour info. Prioritize ghost info.
   }
-  std::cout << ">>> [DEBUG] [REFACTORED] Jets for GHS algorithm have " << jetAndGhostPartons.size()
-            << " constituents before inserting ghosts." << std::endl;
   insertGhostFinalPartons(inputGenPartons, ghostRescaling_, jetAndGhostPartons, true);
-  std::cout << ">>> [DEBUG] [REFACTORED] Jets for GHS algorithm have " << jetAndGhostPartons.size()
-            << " constituents after inserting ghosts." << std::endl;
   // Clustering with the algorithm specified by the user.
   ClusterSequencePtr baseClusterSeq = std::make_shared<fastjet::ClusterSequence>(jetAndGhostPartons, *fjJetDefinition_);
   fastjet::Selector jetPtSelector = fastjet::SelectorPtMin(ghsAlgoPtMin_);
   std::vector<fastjet::PseudoJet> baseJets = fastjet::sorted_by_pt(baseClusterSeq->inclusive_jets(jetPtMin_));
   std::vector<fastjet::PseudoJet> hardJets = jetPtSelector(baseJets);
-  /// [DEBUG] Verify number of jets before GHS algorithm
-  std::cout << ">>> [DEBUG] [REFACTORED] Jets for GHS algorithm have " << hardJets.size()
-            << " constituents after reclustering." << std::endl;
   if (hardJets.size() == 0) {
     return ;
   }
-  /// [DEBUG] Display the jets before dressing.
-  for (auto & jet: hardJets) {
-    print_PJ(&std::cout, jet, 5, true, true);
-    std::cout << std::endl;
-  }
-  /// [DEBUG] Display the stage: dressing.
-  std::cout << ">>> [DEBUG] [REFACTORED] Begin dressing jets with GHS algorithm." << std::endl;
-  
   std::vector<fastjet::PseudoJet> jetAndPartons;
   std::vector<fastjet::PseudoJet> finalJets = hardJets;
   std::vector<fastjet::PseudoJet> inputsFromCS(baseClusterSeq->jets().begin(),
@@ -1093,19 +1028,8 @@ void JetFlavourClustering::makeGHSAlgoJets( const edm::Handle<edm::View<reco::Je
   }
 
   /// Adding constituents. Use only ghost partons and do back-scaling.
-  for (auto constituent : inputsFromCS) { /// [DEBUG] inputsFromCS may lose GhostFinalPartonInfo, so we need to check it.
-    /// [DEBUG] Display constituent before checking for ghost final parton.
-    // print_PJ(&std::cout, constituent, 5, true, true);
-    // std::cout << std::endl;
+  for (auto constituent : inputsFromCS) {
     if (constituent.has_user_info<GhostInfo>() || constituent.pt() < ghsAlgoPtMin_) {
-      /// [DEBUG] Display constituent as ghost final parton.
-      // if (constituent.has_user_info<GhostInfo>()) {
-      //   std::cout << ">>> [DEBUG] [REFACTORED] Constituent is a ghost with PDG ID "
-      //             << constituent.user_info<GhostInfo>().particleRef()->pdgId() << std::endl;
-      // } else {
-      //   std::cout << ">>> [DEBUG] [REFACTORED] ABNORMALLY LOW MOMENTUM!" << std::endl;
-      // }
-      // Confirmed as a ghost final parton.
       constituent.set_user_index(0);
       for (int i = 0; i < njets; ++i) {
         if (constituent.is_inside(finalJets[i])) {
@@ -1119,16 +1043,9 @@ void JetFlavourClustering::makeGHSAlgoJets( const edm::Handle<edm::View<reco::Je
       jetAndPartons.push_back(constituent);
     }
   }
-  /// [DEBUG] Verify number of jets and constituents before dressing.
-  std::cout << ">>> [DEBUG] [REFACTORED] Jets for GHS algorithm have " << jetAndPartons.size()
-            << " constituents & jets before dressing." << std::endl;
+  
   if (jetAndPartons.size() == 0) {
     return ;
-  }
-  /// [DEBUG] Display the jets before dressing.
-  for (auto & jet: jetAndPartons) {
-    print_PJ(&std::cout, jet, 5, true, true);
-    std::cout << std::endl;
   }
   // Set up NNH for GHS algorithm
   fastjet::NNH<GHSBriefJet, GHSInfo> nnh(jetAndPartons, &ghsInfo);
@@ -1150,15 +1067,9 @@ void JetFlavourClustering::makeGHSAlgoJets( const edm::Handle<edm::View<reco::Je
         // (note that through the shared pointer, this also affects the
         // flavour of the objects in the NNH object -- which is dangerous --
         // one should really remove the jet and add it back in)
-        // FlavInfo * flav_info =
-        // dynamic_cast<FlavInfo*>(final_jets[iA].user_info_shared_ptr().get());
-        //*flav_info = *flav_info + all[iB].user_info<FlavInfo>();
-        // FlavInfo flavA =
-        // final_jets[iA].user_info<FlavHistory>().current_flavour();
         fastjet::contrib::FlavInfo flavB = jetAndPartons[iB].user_info<FlavHistory>().current_flavour();
         finalJetsFlavInfo[iA] = finalJetsFlavInfo[iA] + flavB;
         ghsAlgoFlavRecombinerPtr_->apply_summation_choice(finalJetsFlavInfo[iA]);
-        // final_jets[iA].set_user_info(new FlavHistory(flavA + flavB));
         nnh.remove_jet(iB);
       } else {
         //> iA & iB are both flavour inputs
@@ -1184,8 +1095,6 @@ void JetFlavourClustering::makeGHSAlgoJets( const edm::Handle<edm::View<reco::Je
         nnh.merge_jets(iA, iB, mergedFlavoured, jetAndPartons.size() - 1);
       }
     } else {
-      //   assert(iA >= njets && "for beam clustering, iA must be a
-      //   particle");
       nnh.remove_jet(iA);
     }
   }
@@ -1196,9 +1105,6 @@ void JetFlavourClustering::makeGHSAlgoJets( const edm::Handle<edm::View<reco::Je
     finalJets[i].set_user_index(hardJets[i].user_index());
   }
   outputGHSAlgoJets = finalJets;
-  /// [DEBUG] Verify number of reclustered jets for GHS algorithm
-  std::cout << ">>> [DEBUG] [REFACTORED] GHS algorithm reclustered jets have " << outputGHSAlgoJets.size()
-            << " constituents after reclustering." << std::endl;
   // match reclustered jets to original jets
   matchReclusteredJets(inputGenJets, outputGHSAlgoJets, matchedIndices);
 }
