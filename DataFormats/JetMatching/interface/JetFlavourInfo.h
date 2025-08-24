@@ -35,7 +35,7 @@ namespace reco {
     kCMP,
     kGHS,
     kIFN,
-    kSDF
+    kGHSFull
   };
   // Number of fastjet::contrib flavour definition algorithms
   constexpr unsigned int kFJContribFlavAlgoCount = 4;

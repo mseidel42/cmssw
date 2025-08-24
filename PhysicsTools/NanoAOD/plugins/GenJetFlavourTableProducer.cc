@@ -48,6 +48,7 @@ private:
   void produce(edm::Event&, edm::EventSetup const&) override;
 
   uint32_t fjContribFlavArrayToInt(const std::vector<int>& fjContribFlav) const;
+  int16_t  fjContribFlavArrayToLeading(const std::vector<int>& fjContribFlav) const;
 
   std::string name_;
   edm::EDGetTokenT<std::vector<reco::GenJet> > src_;
@@ -68,6 +69,10 @@ void GenJetFlavourTableProducer::produce(edm::Event& iEvent, const edm::EventSet
   std::vector<uint8_t> nCHadrons;
   // fastjet::contrib flavour info
   std::vector<uint32_t> fjContribGHSAlgoFlav;
+  std::vector<uint32_t> fjContribGHSFullAlgoFlav;
+  std::vector<int16_t> fjContribGHSAlgoLeadingFlav;
+  std::vector<int16_t> fjContribGHSFullAlgoleadingFlav;
+
 
   for (const reco::GenJet& jet : jetsProd) {
     if (!cut_(jet))
@@ -84,8 +89,20 @@ void GenJetFlavourTableProducer::produce(edm::Event& iEvent, const edm::EventSet
         if (jetFlavourInfoMatching.second.haveFJContribFlavAlgo(reco::FJContribFlavDef::kGHS)) {
           fjContribGHSAlgoFlav.push_back(
             fjContribFlavArrayToInt(jetFlavourInfoMatching.second.getFJContribFlavAlgo(reco::FJContribFlavDef::kGHS)));
+          fjContribGHSAlgoLeadingFlav.push_back(
+            fjContribFlavArrayToLeading(jetFlavourInfoMatching.second.getFJContribFlavAlgo(reco::FJContribFlavDef::kGHS)));
         } else {
           fjContribGHSAlgoFlav.push_back(0);
+          fjContribGHSAlgoLeadingFlav.push_back(0);
+        }
+        if (jetFlavourInfoMatching.second.haveFJContribFlavAlgo(reco::FJContribFlavDef::kGHSFull)) {
+          fjContribGHSFullAlgoFlav.push_back(
+            fjContribFlavArrayToInt(jetFlavourInfoMatching.second.getFJContribFlavAlgo(reco::FJContribFlavDef::kGHSFull)));
+          fjContribGHSFullAlgoleadingFlav.push_back(
+            fjContribFlavArrayToLeading(jetFlavourInfoMatching.second.getFJContribFlavAlgo(reco::FJContribFlavDef::kGHSFull)));
+        } else {
+          fjContribGHSFullAlgoFlav.push_back(0);
+          fjContribGHSFullAlgoleadingFlav.push_back(0);
         }
         matched = true;
         break;
@@ -98,6 +115,9 @@ void GenJetFlavourTableProducer::produce(edm::Event& iEvent, const edm::EventSet
       nCHadrons.push_back(0);
       // fastjet::contrib flavour info
       fjContribGHSAlgoFlav.push_back(0);
+      fjContribGHSFullAlgoFlav.push_back(0);
+      fjContribGHSAlgoLeadingFlav.push_back(0);
+      fjContribGHSFullAlgoleadingFlav.push_back(0);
     }
   }
 
@@ -108,6 +128,12 @@ void GenJetFlavourTableProducer::produce(edm::Event& iEvent, const edm::EventSet
   tab->addColumn<uint8_t>("nCHadrons", nCHadrons, "number of c-hadrons");
   tab->addColumn<uint32_t>("fjContribGHSAlgoFlav", fjContribGHSAlgoFlav,
                            "fastjet::contrib GHS flavour info, encoded as integer");
+  tab->addColumn<uint32_t>("fjContribGHSFullAlgoFlav", fjContribGHSFullAlgoFlav,
+                            "fastjet::contrib GHS full algorithm flavour info, encoded as integer");
+  tab->addColumn<int16_t>("fjContribGHSAlgoLeadingFlav", fjContribGHSAlgoLeadingFlav,
+                            "fastjet::contrib GHS flavour info, leading flavour only, encoded as integer");
+  tab->addColumn<int16_t>("fjContribGHSFullAlgoLeadingFlav", fjContribGHSFullAlgoleadingFlav,
+                            "fastjet::contrib GHS full algorithm flavour info, leading flavour only, encoded as integer");               
 
   iEvent.put(std::move(tab));
 }
@@ -128,6 +154,19 @@ uint32_t GenJetFlavourTableProducer::fjContribFlavArrayToInt(const std::vector<i
     if (fjContribFlav[i] < 0)
       flavAbs |= (1 << 3); // set the sign bit for qbar
     result |= (flavAbs << (4 * i - 1));
+  }
+  return result;
+}
+
+int16_t GenJetFlavourTableProducer::fjContribFlavArrayToLeading(const std::vector<int>& fjContribFlav) const {
+  /// Taking only the heaviest flavour from the array. q/qbar separated by +/-.
+  /// Mark only the existence of the flavour, not the number of constituents.
+  int16_t result = 0;
+  for (unsigned int i = fjContribFlav.size() - 1; i > 0; --i) {
+    if (fjContribFlav[i] != 0) {
+      result = static_cast<int16_t>(fjContribFlav[i] > 0 ? i : -i);
+      break;
+    }
   }
   return result;
 }
