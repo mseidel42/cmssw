@@ -1,6 +1,7 @@
 #ifndef DataFormats_JetMatching_JetFlavourInfo_H
 #define DataFormats_JetMatching_JetFlavourInfo_H
 
+#include <array>
 #include <vector>
 #include "DataFormats/HepMCCandidate/interface/GenParticle.h"
 #include "DataFormats/HepMCCandidate/interface/GenParticleFwd.h"
@@ -114,9 +115,9 @@ namespace reco {
     int m_hadronFlavour;
     int m_partonFlavour;
     /// Indicator for which fastjet::contrib flavour definition algorithms are used.
-    bool m_fjContribFlavAlgoSet[kFJContribFlavAlgoCount];
+    std::array<bool, kFJContribFlavAlgoCount> m_fjContribFlavAlgoSet;
     /// fastjet::contrib algorithm flavour definition (arXiv:2205.01109)
-    std::vector<int> m_fjContribFlav[kFJContribFlavAlgoCount];
+    std::array<std::vector<int>, kFJContribFlavAlgoCount> m_fjContribFlav;
   };
 
 }  // namespace reco
