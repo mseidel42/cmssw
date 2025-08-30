@@ -86,20 +86,20 @@ void GenJetFlavourTableProducer::produce(edm::Event& iEvent, const edm::EventSet
         nBHadrons.push_back(jetFlavourInfoMatching.second.getbHadrons().size());
         nCHadrons.push_back(jetFlavourInfoMatching.second.getcHadrons().size());
         // fastjet::contrib flavour info
-        if (jetFlavourInfoMatching.second.haveFJContribFlavAlgo(reco::FJContribFlavDef::kGHS)) {
+        if (jetFlavourInfoMatching.second.haveAlgoFlav(reco::FlavAlgo::kGHS)) {
           fjContribGHSAlgoFlav.push_back(
-            fjContribFlavArrayToInt(jetFlavourInfoMatching.second.getFJContribFlavAlgo(reco::FJContribFlavDef::kGHS)));
+            fjContribFlavArrayToInt(jetFlavourInfoMatching.second.getAlgoFlav(reco::FlavAlgo::kGHS)));
           fjContribGHSAlgoLeadingFlav.push_back(
-            fjContribFlavArrayToLeading(jetFlavourInfoMatching.second.getFJContribFlavAlgo(reco::FJContribFlavDef::kGHS)));
+            fjContribFlavArrayToLeading(jetFlavourInfoMatching.second.getAlgoFlav(reco::FlavAlgo::kGHS)));
         } else {
           fjContribGHSAlgoFlav.push_back(0);
           fjContribGHSAlgoLeadingFlav.push_back(0);
         }
-        if (jetFlavourInfoMatching.second.haveFJContribFlavAlgo(reco::FJContribFlavDef::kGHSFull)) {
+        if (jetFlavourInfoMatching.second.haveAlgoFlav(reco::FlavAlgo::kGHSFull)) {
           fjContribGHSFullAlgoFlav.push_back(
-            fjContribFlavArrayToInt(jetFlavourInfoMatching.second.getFJContribFlavAlgo(reco::FJContribFlavDef::kGHSFull)));
+            fjContribFlavArrayToInt(jetFlavourInfoMatching.second.getAlgoFlav(reco::FlavAlgo::kGHSFull)));
           fjContribGHSFullAlgoleadingFlav.push_back(
-            fjContribFlavArrayToLeading(jetFlavourInfoMatching.second.getFJContribFlavAlgo(reco::FJContribFlavDef::kGHSFull)));
+            fjContribFlavArrayToLeading(jetFlavourInfoMatching.second.getAlgoFlav(reco::FlavAlgo::kGHSFull)));
         } else {
           fjContribGHSFullAlgoFlav.push_back(0);
           fjContribGHSFullAlgoleadingFlav.push_back(0);

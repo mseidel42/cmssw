@@ -256,7 +256,7 @@ private:
   const bool useLeptons_;
 
   /// Flag for introducing full gen Particle collection, only needed when some new jet flavour definition is used.
-  const bool enableFJContribFlavAlgo_;
+  const bool enableAlgoFlav_;
 
   ClusterSequencePtr fjClusterSeq_;
   JetDefPtr fjJetDefinition_;
@@ -302,7 +302,7 @@ JetFlavourClustering::JetFlavourClustering(const edm::ParameterSet& iConfig)
 
       useSubjets_(iConfig.exists("groomedJets") && iConfig.exists("subjets")),
       useLeptons_(iConfig.exists("leptons")),
-      enableFJContribFlavAlgo_(enableGHSAlgoFlavour_)
+      enableAlgoFlav_(enableGHSAlgoFlavour_)
 
 {
   // register your products
@@ -585,13 +585,13 @@ void JetFlavourClustering::produce(edm::Event& iEvent, const edm::EventSetup& iS
       if (enableGHSAlgoFlavour_) {
         // check if the GHS algorithm flavour information is available
         if (fjGHSAlgoJetMatchingIndices.at(i) >= 0) {
-          (*jetFlavourInfos)[jets->refAt(i)].setFJContribFlavAlgo(
-            reco::FJContribFlavDef::kGHS,
+          (*jetFlavourInfos)[jets->refAt(i)].setAlgoFlav(
+            reco::FlavAlgo::kGHS,
             fastjet::contrib::FlavHistory::current_flavour_of(fjGHSAlgoJetResults.at(fjGHSAlgoJetMatchingIndices.at(i))));
         }
         if (fjGHSFullAlgoJetMatchingIndices.at(i) >= 0) {
-          (*jetFlavourInfos)[jets->refAt(i)].setFJContribFlavAlgo(
-            reco::FJContribFlavDef::kGHSFull,
+          (*jetFlavourInfos)[jets->refAt(i)].setAlgoFlav(
+            reco::FlavAlgo::kGHSFull,
             fastjet::contrib::FlavHistory::current_flavour_of(fjGHSFullAlgoJetResults.at(fjGHSFullAlgoJetMatchingIndices.at(i))));
         }
       }
