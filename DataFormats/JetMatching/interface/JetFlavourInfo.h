@@ -84,6 +84,28 @@ namespace reco {
       m_fjContribFlav[static_cast<int>(algo)].assign(fjFlavInfo._flav_content, fjFlavInfo._flav_content + 7);
       m_AlgoFlavSet[static_cast<int>(algo)] = true;
     }
+    /// Decode the flavour defined by some fastjet::contrib algorithm, from an uint32_t code.
+    /// When "odd && >= 7" or "even && >= 6" is encountered, they are decoded as +/-7 or +/-6. ("as-is")
+    void setAlgoFlav(const FlavAlgo& algo, const uint32_t& flavCode) {
+      std::vector<int>& flavArray = m_fjContribFlav[static_cast<int>(algo)];
+      flavArray.resize(7, 0);
+      flavArray[0] = static_cast<int>(flavCode & 0x7);
+      uint32_t flavAbs = 0;
+      for (unsigned int i = 1; i < 7; ++i) {
+        flavAbs = (flavCode >> (i * 4 - 1)) & 0xF;
+        if (flavAbs == 0)
+          flavArray[i] = 0;
+        else {
+          if (flavAbs & (1 << 3)) { // qbar
+            flavAbs &= ~(1 << 3);
+            flavArray[i] = -static_cast<int>(flavAbs);
+          } else { // q
+            flavArray[i] = static_cast<int>(flavAbs);
+          }
+        }
+      }
+      m_AlgoFlavSet[static_cast<int>(algo)] = true;
+    }
     /// Verify if the flavour defined by some fastjet::contrib algorithm is set.
     bool isAlgoFlavSet(const FlavAlgo& algo) const {
       return m_AlgoFlavSet[static_cast<int>(algo)];
@@ -95,6 +117,47 @@ namespace reco {
                                                 << static_cast<int>(algo) << " is not set.";
       }
       return m_fjContribFlav[static_cast<int>(algo)][iflav];
+    }
+    /// Getting the heaviest flavour of the flavour defined by some fastjet::contrib algorithm.
+    int getAlgoFlavLeading(const FlavAlgo& algo) const {
+      if (m_AlgoFlavSet[static_cast<int>(algo)] == false) {
+        throw cms::Exception("JetFlavourInfo") << "The flavour defined by the fastjet::contrib algorithm "
+                                                << static_cast<int>(algo) << " is not set.";
+      }
+      const std::vector<int>& flavArray = m_fjContribFlav[static_cast<int>(algo)];
+      int flavRes = 0;
+      if(!flavArray.empty()) {
+        for (size_t i = flavArray.size() - 1; i > 0; --i) {
+          if (flavArray[i] != 0) {
+            flavRes = flavArray[i] > 0 ? i : -i;
+          }
+        }
+      }
+      return flavRes;
+    }
+    /// Encoding the full flavour into uint32_t
+    /// Coding rule: lowest 3 bits for 0th element from the array, the flag;
+    ///              then 4 bits from lowest to highest, in the order "d, u, s, c, b, t"
+    ///              For each flavour, highest bit 0/1 is q/qbar,
+    ///              and next 3 bits are "none, 1, 2, 3, 4, 5, even and >=6, odd and >=7"
+    uint32_t getAlgoFlavCode(const FlavAlgo& algo) const {
+      if (m_AlgoFlavSet[static_cast<int>(algo)] == false) {
+        throw cms::Exception("JetFlavourInfo") << "The flavour defined by the fastjet::contrib algorithm "
+                                                << static_cast<int>(algo) << " is not set.";
+      }
+      const std::vector<int>& flavArray = m_fjContribFlav[static_cast<int>(algo)];
+      uint32_t result = static_cast<uint32_t>(flavArray[0] & 0x7);
+      uint32_t flavAbs = 0;
+      for (unsigned int i = 1; i < flavArray.size(); ++i) {
+        flavAbs = static_cast<uint32_t>(flavArray[i] > 0 ? flavArray[i] : -flavArray[i]);
+        if (flavAbs > 7)
+          flavAbs = (6 | ((flavArray[i] & 1))); // even or odd and >= 6
+        // Handle the sign.
+        if (flavArray[i] < 0)
+          flavAbs |= (1 << 3); // set the sign bit for qbar
+        result |= (flavAbs << (i * 4 - 1));
+      }
+      return result;
     }
     const std::vector<int>& getAlgoFlav(const FlavAlgo& algo) const{
       if (m_AlgoFlavSet[static_cast<int>(algo)] == false) {
