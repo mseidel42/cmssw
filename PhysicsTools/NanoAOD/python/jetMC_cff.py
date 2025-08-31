@@ -14,6 +14,8 @@ jetMCTable = simplePATJetFlatTableProducer.clone(
     variables = cms.PSet(
         partonFlavour = Var("partonFlavour()", "int16", doc="flavour from parton matching"),
         hadronFlavour = Var("hadronFlavour()", "uint8", doc="flavour from hadron ghost clustering"),
+        # reco::FlavAlgo::kGHS is not parsed properly. Manual value 1 is used instead.
+        ghsFlavour = Var("?jetFlavourInfo().haveAlgoFlav(1)?jetFlavourInfo().getAlgoFlavCode(1):0", "uint", doc="GHS flavour code of matched gen jet"),
         # cut should follow genJetTable.cut
         genJetIdx = Var("?genJetFwdRef().backRef().isNonnull() && genJetFwdRef().backRef().pt() > 10.?genJetFwdRef().backRef().key():-1", "int16", doc="index of matched gen jet"),
     )

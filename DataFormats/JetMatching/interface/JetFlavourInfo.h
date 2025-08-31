@@ -78,7 +78,12 @@ namespace reco {
     void setPartonFlavour(const int partonFlavour) { m_partonFlavour = partonFlavour; }
 
     /// view if flavour by some fastjet::contrib algorithm is defined
-    bool haveAlgoFlav(const FlavAlgo& algo) const { return !m_fjContribFlav[static_cast<int>(algo)].empty(); }
+    bool haveAlgoFlav(const FlavAlgo& algo) const { return !m_fjContribFlav[static_cast<size_t>(algo)].empty(); }
+    /// the casting is important to ensure the algoNum is valid
+    bool haveAlgoFlav(const uint8_t& algoNum) const {
+      std::cout << "[DEBUG] Converting flavour algorithm number " << static_cast<int>(static_cast<FlavAlgo>(algoNum)) << " to enum class FlavAlgo." << std::endl;
+      return haveAlgoFlav(static_cast<FlavAlgo>(algoNum));
+    }
     /// Set the flavour defined by some fastjet::contrib algorithm, on one digit, only if an array already exists.
     void setAlgoFlav(const FlavAlgo& algo, const fastjet::contrib::FlavInfo& fjFlavInfo) {
       m_fjContribFlav[static_cast<int>(algo)].assign(fjFlavInfo._flav_content, fjFlavInfo._flav_content + 7);
@@ -130,6 +135,7 @@ namespace reco {
         for (size_t i = flavArray.size() - 1; i > 0; --i) {
           if (flavArray[i] != 0) {
             flavRes = flavArray[i] > 0 ? i : -i;
+            break;
           }
         }
       }
@@ -158,6 +164,9 @@ namespace reco {
         result |= (flavAbs << (i * 4 - 1));
       }
       return result;
+    }
+    uint32_t getAlgoFlavCode(const uint8_t& algoNum) const{
+      return getAlgoFlavCode(static_cast<FlavAlgo>(algoNum));
     }
     const std::vector<int>& getAlgoFlav(const FlavAlgo& algo) const{
       if (m_AlgoFlavSet[static_cast<int>(algo)] == false) {
