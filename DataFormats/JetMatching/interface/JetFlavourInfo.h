@@ -81,13 +81,11 @@ namespace reco {
     bool haveAlgoFlav(const FlavAlgo& algo) const { return !m_fjContribFlav[static_cast<size_t>(algo)].empty(); }
     /// the casting is important to ensure the algoNum is valid
     bool haveAlgoFlav(const uint8_t& algoNum) const {
-      std::cout << "[DEBUG] Converting flavour algorithm number " << static_cast<int>(static_cast<FlavAlgo>(algoNum)) << " to enum class FlavAlgo." << std::endl;
       return haveAlgoFlav(static_cast<FlavAlgo>(algoNum));
     }
     /// Set the flavour defined by some fastjet::contrib algorithm, on one digit, only if an array already exists.
     void setAlgoFlav(const FlavAlgo& algo, const fastjet::contrib::FlavInfo& fjFlavInfo) {
       m_fjContribFlav[static_cast<int>(algo)].assign(fjFlavInfo._flav_content, fjFlavInfo._flav_content + 7);
-      m_AlgoFlavSet[static_cast<int>(algo)] = true;
     }
     /// Decode the flavour defined by some fastjet::contrib algorithm, from an uint32_t code.
     /// When "odd && >= 7" or "even && >= 6" is encountered, they are decoded as +/-7 or +/-6. ("as-is")
@@ -109,23 +107,31 @@ namespace reco {
           }
         }
       }
-      m_AlgoFlavSet[static_cast<int>(algo)] = true;
     }
-    /// Verify if the flavour defined by some fastjet::contrib algorithm is set.
-    bool isAlgoFlavSet(const FlavAlgo& algo) const {
-      return m_AlgoFlavSet[static_cast<int>(algo)];
+    void setAlgoFlav(const uint8_t& algoNum, const fastjet::contrib::FlavInfo& fjFlavInfo){
+      setAlgoFlav(static_cast<FlavAlgo>(algoNum), fjFlavInfo);
+    }
+    void setAlgoFlav(const uint8_t& algoNum, const uint32_t& flavCode){
+      setAlgoFlav(static_cast<FlavAlgo>(algoNum), flavCode);
     }
     /// Obtain the flavour defined by some fastjet::contrib algorithm, either by digit or by array. 
     int getAlgoFlav(const FlavAlgo& algo, const unsigned int& iflav) const {
-      if (m_AlgoFlavSet[static_cast<int>(algo)] == false) {
+      if (m_fjContribFlav[static_cast<int>(algo)].empty()) {
         throw cms::Exception("JetFlavourInfo") << "The flavour defined by the fastjet::contrib algorithm "
                                                 << static_cast<int>(algo) << " is not set.";
       }
       return m_fjContribFlav[static_cast<int>(algo)][iflav];
     }
+    const std::vector<int>& getAlgoFlav(const FlavAlgo& algo) const{
+      if (m_fjContribFlav[static_cast<int>(algo)].empty()) {
+        throw cms::Exception("JetFlavourInfo") << "The flavour defined by the fastjet::contrib algorithm "
+                                                << static_cast<int>(algo) << " is not set.";
+      }
+      return m_fjContribFlav[static_cast<int>(algo)];
+    }
     /// Getting the heaviest flavour of the flavour defined by some fastjet::contrib algorithm.
     int getAlgoFlavLeading(const FlavAlgo& algo) const {
-      if (m_AlgoFlavSet[static_cast<int>(algo)] == false) {
+      if (m_fjContribFlav[static_cast<int>(algo)].empty()) {
         throw cms::Exception("JetFlavourInfo") << "The flavour defined by the fastjet::contrib algorithm "
                                                 << static_cast<int>(algo) << " is not set.";
       }
@@ -147,7 +153,7 @@ namespace reco {
     ///              For each flavour, highest bit 0/1 is q/qbar,
     ///              and next 3 bits are "none, 1, 2, 3, 4, 5, even and >=6, odd and >=7"
     uint32_t getAlgoFlavCode(const FlavAlgo& algo) const {
-      if (m_AlgoFlavSet[static_cast<int>(algo)] == false) {
+      if (m_fjContribFlav[static_cast<int>(algo)].empty()) {
         throw cms::Exception("JetFlavourInfo") << "The flavour defined by the fastjet::contrib algorithm "
                                                 << static_cast<int>(algo) << " is not set.";
       }
@@ -165,18 +171,15 @@ namespace reco {
       }
       return result;
     }
-    uint32_t getAlgoFlavCode(const uint8_t& algoNum) const{
-      return getAlgoFlavCode(static_cast<FlavAlgo>(algoNum));
-    }
-    const std::vector<int>& getAlgoFlav(const FlavAlgo& algo) const{
-      if (m_AlgoFlavSet[static_cast<int>(algo)] == false) {
-        throw cms::Exception("JetFlavourInfo") << "The flavour defined by the fastjet::contrib algorithm "
-                                                << static_cast<int>(algo) << " is not set.";
-      }
-      return m_fjContribFlav[static_cast<int>(algo)];
-    }
+    /// Obtain the flavour defined by some fastjet::contrib algorithm, either by digit or by array.
+    /// Support uint8_t input as indicator for the algorithm to allow NanoAOD-level reading.
+    int getAlgoFlav(const uint8_t& algoNum, const unsigned int& iflav){ return getAlgoFlav(static_cast<FlavAlgo>(algoNum), iflav); }
+    const std::vector<int>& getAlgoFlav(const uint8_t& algoNum){ return getAlgoFlav(static_cast<FlavAlgo>(algoNum)); }
+    int getAlgoFlavLeading(const uint8_t& algoNum){ return getAlgoFlavLeading(static_cast<FlavAlgo>(algoNum)); }
+    uint32_t getAlgoFlavCode(const uint8_t& algoNum) const{ return getAlgoFlavCode(static_cast<FlavAlgo>(algoNum)); }
     /// When needed, clear the flavour defined by some fastjet::contrib algorithm.
     void clearAlgoFlav(const FlavAlgo& algo) { m_fjContribFlav[static_cast<int>(algo)].clear(); }
+    void clearAlgoFlav(const uint8_t& algoNum) {}
 
   private:
     GenParticleRefVector m_bHadrons;
@@ -186,8 +189,6 @@ namespace reco {
     /// Original hadronFlavour and partonFlavour definition.
     int m_hadronFlavour;
     int m_partonFlavour;
-    /// Indicator for which fastjet::contrib flavour definition algorithms are used.
-    std::array<bool, kAlgoFlavCount> m_AlgoFlavSet;
     /// fastjet::contrib algorithm flavour definition (arXiv:2205.01109)
     std::array<std::vector<int>, kAlgoFlavCount> m_fjContribFlav;
   };
