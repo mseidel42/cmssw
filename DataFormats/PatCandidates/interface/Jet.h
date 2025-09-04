@@ -110,6 +110,9 @@ namespace pat {
     int partonFlavour() const;
     /// return the hadron-based flavour of the jet
     int hadronFlavour() const;
+    /// return the GHS algorithm-derived flavour of the jet, using bitwise encoding (0 as N/A)
+    int ghsFlavour() const;
+    int ghsFullFlavour() const;
     /// return the JetFlavourInfo of the jet
     const reco::JetFlavourInfo& jetFlavourInfo() const;
 

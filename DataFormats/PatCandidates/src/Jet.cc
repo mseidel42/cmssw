@@ -239,6 +239,17 @@ int Jet::partonFlavour() const { return jetFlavourInfo_.getPartonFlavour(); }
 /// return the hadron-based flavour of the jet
 int Jet::hadronFlavour() const { return jetFlavourInfo_.getHadronFlavour(); }
 
+/// return the GHS algorithm-derived flavour of the jet, using bitwise encoding (0 as N/A)
+int Jet::ghsFlavour() const {
+  return jetFlavourInfo_.haveAlgoFlav(reco::FlavAlgo::kGHS) ? jetFlavourInfo_.getAlgoFlavCode(reco::FlavAlgo::kGHS) : 0;
+}
+
+int Jet::ghsFullFlavour() const {
+  return jetFlavourInfo_.haveAlgoFlav(reco::FlavAlgo::kGHSFull)
+             ? jetFlavourInfo_.getAlgoFlavCode(reco::FlavAlgo::kGHSFull)
+             : 0;
+}
+
 /// return the JetFlavourInfo of the jet
 const reco::JetFlavourInfo& Jet::jetFlavourInfo() const { return jetFlavourInfo_; }
 
