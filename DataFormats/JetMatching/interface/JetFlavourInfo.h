@@ -39,7 +39,8 @@ namespace reco {
     kGHSFull
   };
   // Number of fastjet::contrib flavour definition algorithms
-  constexpr unsigned int kAlgoFlavCount = 4;
+  constexpr size_t kAlgoFlavCount = 4;
+  constexpr size_t kAlgoArrayLen = 7;
 
   class JetFlavourInfo {
   public:
@@ -85,16 +86,22 @@ namespace reco {
     }
     /// Set the flavour defined by some fastjet::contrib algorithm, on one digit, only if an array already exists.
     void setAlgoFlav(const FlavAlgo& algo, const fastjet::contrib::FlavInfo& fjFlavInfo) {
-      m_fjContribFlav[static_cast<int>(algo)].assign(fjFlavInfo._flav_content, fjFlavInfo._flav_content + 7);
+      m_fjContribFlav[static_cast<int>(algo)].assign(fjFlavInfo._flav_content,
+                                                     fjFlavInfo._flav_content + kAlgoArrayLen);
+    }
+    /// Set the flavour defined by some fastjet::contrib algorithm, from one array representing flav.
+    void setAlgoFlav(const FlavAlgo& algo, const std::vector<int>& flav) {
+      assert(flav.size() == kAlgoArrayLen);
+      m_fjContribFlav[static_cast<int>(algo)].assign(flav.begin(), flav.end());
     }
     /// Decode the flavour defined by some fastjet::contrib algorithm, from an uint32_t code.
     /// When "odd && >= 7" or "even && >= 6" is encountered, they are decoded as +/-7 or +/-6. ("as-is")
     void setAlgoFlav(const FlavAlgo& algo, const uint32_t& flavCode) {
       std::vector<int>& flavArray = m_fjContribFlav[static_cast<int>(algo)];
-      flavArray.resize(7, 0);
+      flavArray.resize(kAlgoArrayLen, 0);
       flavArray[0] = static_cast<int>(flavCode & 0x7);
       uint32_t flavAbs = 0;
-      for (unsigned int i = 1; i < 7; ++i) {
+      for (unsigned int i = 1; i < kAlgoArrayLen; ++i) {
         flavAbs = (flavCode >> (i * 4 - 1)) & 0xF;
         if (flavAbs == 0)
           flavArray[i] = 0;
