@@ -151,6 +151,9 @@ namespace reco {
             break;
           }
         }
+        if(flavRes == 0){ // Assigned "flavourless"
+          flavRes = 21; // Store as gluon
+        }
       }
       return flavRes;
     }
