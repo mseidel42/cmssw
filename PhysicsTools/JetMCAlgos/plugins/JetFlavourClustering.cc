@@ -297,8 +297,9 @@ JetFlavourClustering::JetFlavourClustering(const edm::ParameterSet& iConfig)
               ? iConfig.getParameter<std::string>("ghsAlgoFlavSummationScheme")
               : "net_flav"),
       /// Flags for enabling new flavour definition algorithm. Double-check if full gen particles collection is given.
-      enableGHSAlgoFlavour_(iConfig.exists("enableGHSAlgoFlavour") &&
-                            iConfig.getParameter<bool>("enableGHSAlgoFlavour")),
+      enableGHSAlgoFlavour_(iConfig.exists("enableGHSAlgoFlavour") ?
+                            iConfig.getParameter<bool>("enableGHSAlgoFlavour") :
+                            true),
 
       useSubjets_(iConfig.exists("groomedJets") && iConfig.exists("subjets")),
       useLeptons_(iConfig.exists("leptons")),
