@@ -70,7 +70,6 @@ void GenJetFlavourTableProducer::produce(edm::Event& iEvent, const edm::EventSet
   std::vector<int16_t> fjContribGHSAlgoLeadingFlav;
   std::vector<int16_t> fjContribGHSFullAlgoleadingFlav;
 
-
   for (const reco::GenJet& jet : jetsProd) {
     if (!cut_(jet))
       continue;
@@ -92,7 +91,8 @@ void GenJetFlavourTableProducer::produce(edm::Event& iEvent, const edm::EventSet
         }
         if (jetFlavourInfoMatching.second.haveAlgoFlav(reco::FlavAlgo::kGHSFull)) {
           fjContribGHSFullAlgoFlav.push_back(jetFlavourInfoMatching.second.getAlgoFlavCode(reco::FlavAlgo::kGHSFull));
-          fjContribGHSFullAlgoleadingFlav.push_back(jetFlavourInfoMatching.second.getAlgoFlavLeading(reco::FlavAlgo::kGHSFull));
+          fjContribGHSFullAlgoleadingFlav.push_back(
+              jetFlavourInfoMatching.second.getAlgoFlavLeading(reco::FlavAlgo::kGHSFull));
         } else {
           fjContribGHSFullAlgoFlav.push_back(0);
           fjContribGHSFullAlgoleadingFlav.push_back(0);
@@ -119,14 +119,18 @@ void GenJetFlavourTableProducer::produce(edm::Event& iEvent, const edm::EventSet
   tab->addColumn<uint8_t>("hadronFlavour", hadronFlavour, "flavour from hadron ghost clustering");
   tab->addColumn<uint8_t>("nBHadrons", nBHadrons, "number of b-hadrons");
   tab->addColumn<uint8_t>("nCHadrons", nCHadrons, "number of c-hadrons");
-  tab->addColumn<uint32_t>("ghsFlavCode", fjContribGHSAlgoFlav,
-                            "new fastjet::contrib GHS flavour info, encoded as integer");
-  tab->addColumn<uint32_t>("ghsFullFlavCode", fjContribGHSFullAlgoFlav,
-                            "new fastjet::contrib GHS full algorithm flavour info, encoded as integer");
-  tab->addColumn<int16_t>("ghsFlavLeading", fjContribGHSAlgoLeadingFlav,
-                            "new fastjet::contrib GHS flavour info, leading flavour only, encoded as integer");
-  tab->addColumn<int16_t>("ghsFullFlavLeading", fjContribGHSFullAlgoleadingFlav,
-                            "new fastjet::contrib GHS full algorithm flavour info, leading flavour only, encoded as integer");
+  tab->addColumn<uint32_t>(
+      "ghsFlavCode", fjContribGHSAlgoFlav, "new fastjet::contrib GHS flavour info, encoded as integer");
+  tab->addColumn<uint32_t>("ghsFullFlavCode",
+                           fjContribGHSFullAlgoFlav,
+                           "new fastjet::contrib GHS full algorithm flavour info, encoded as integer");
+  tab->addColumn<int16_t>("ghsFlavLeading",
+                          fjContribGHSAlgoLeadingFlav,
+                          "new fastjet::contrib GHS flavour info, leading flavour only, encoded as integer");
+  tab->addColumn<int16_t>(
+      "ghsFullFlavLeading",
+      fjContribGHSFullAlgoleadingFlav,
+      "new fastjet::contrib GHS full algorithm flavour info, leading flavour only, encoded as integer");
 
   iEvent.put(std::move(tab));
 }
