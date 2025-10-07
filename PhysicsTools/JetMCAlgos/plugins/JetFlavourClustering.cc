@@ -207,8 +207,6 @@ private:
                            std::vector<int>& matchedIndices,
                            std::vector<fastjet::PseudoJet>& outputGHSFullAlgoJets);
 
-  int encodeFJFlavInfo(const fastjet::contrib::FlavInfo& fjFlavInfo);
-
   bool isFinalParton(const reco::GenParticleRef& particle) const;
 
   void makeFinalPartonSet(const reco::GenParticleRefVector& particles, reco::GenParticleRefVector& finalPartons);
