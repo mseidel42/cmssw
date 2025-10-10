@@ -684,7 +684,7 @@ void JetFlavourClustering::produce(edm::Event& iEvent, const edm::EventSetup& iS
       fjGHSAlgoInlineFlavPartons.push_back(partonPseudoJet);
     }
     else if(fjInputs[idx].user_info<GhostInfo>().isParton()){
-      std::cout << "[DEBUG] Identified non-final parton with pdgId = " << fjInputs[idx].user_info<GhostInfo>().particleRef()->pdgId() << " and Pt = " << fjInputs[idx].pt()/ghostRescaling_ << std::endl;
+     //  std::cout << "[DEBUG] Identified non-final parton with pdgId = " << fjInputs[idx].user_info<GhostInfo>().particleRef()->pdgId() << " and Pt = " << fjInputs[idx].pt()/ghostRescaling_ << std::endl;
     }
   }
   // GHS Core is ready to use
