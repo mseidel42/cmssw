@@ -18,5 +18,6 @@
 <use name="FWCore/MessageLogger"/>
 <use name="FWCore/Utilities"/>
 <use name="fastjet"/>
+<use name="fastjet-contrib"/>
 <library file="*.cc" name="PhysicsToolsJetMCAlgosPlugins">
 </library>
