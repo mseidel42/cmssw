@@ -20,6 +20,8 @@ jetMCTable = simplePATJetFlatTableProducer.clone(
         ghsFlavLeading = Var("?haveAlgoFlav(1)?algoFlavLeading(1):0", "int", doc="Heaviest parton flavour in the jet flavour from GHS"),
         ghsFullFlavCode = Var("?haveAlgoFlav(3)?algoFlavCode(3):0", "uint", doc="GHS full flavour code of matched gen jet"),
         ghsFullFlavLeading = Var("?haveAlgoFlav(3)?algoFlavLeading(3):0", "int", doc="Heaviest parton flavour in the jet full flavour from GHS"),
+        ghsInlineFlavCode = Var("?haveAlgoFlav(4)?algoFlavCode(4):0", "uint", doc="GHS inline flavour code of matched gen jet"),
+        ghsInlineFlavLeading = Var("?haveAlgoFlav(4)?algoFlavLeading(4):0", "int", doc="Heaviest parton flavour in the jet inline flavour from GHS"),
         # cut should follow genJetTable.cut
         genJetIdx = Var("?genJetFwdRef().backRef().isNonnull() && genJetFwdRef().backRef().pt() > 10.?genJetFwdRef().backRef().key():-1", "int16", doc="index of matched gen jet"),
     )

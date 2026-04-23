@@ -675,12 +675,16 @@ void JetFlavourClustering::produce(edm::Event& iEvent, const edm::EventSetup& iS
   std::vector<fastjet::PseudoJet> fjGHSAlgoInlineJets;
   std::vector<fastjet::PseudoJet> fjGHSAlgoInlineFlavPartons;
   std::vector<fastjet::PseudoJet> fjGHSAlgoInlineJetResults;
-  for(auto it = jets->begin(); it != jets->end(); ++it) {
-    fjGHSAlgoInlineJets.push_back(fastjet::PseudoJet(it->px(), it->py(), it->pz(), it->energy()));
+  for(size_t i = 0; i < jets->size(); ++i) {
+    if (reclusteredIndices.at(i) < 0) {
+      fjGHSAlgoInlineJets.push_back(fastjet::PseudoJet(jets->at(i).px(), jets->at(i).py(), jets->at(i).pz(), jets->at(i).energy()));
+    } else {
+      fjGHSAlgoInlineJets.push_back(inclusiveJets.at(reclusteredIndices.at(i)));
+    }
     // std::cout << "[DEBUG] GHS inline jet: Pt = " << it->pt() << ", Eta = " << it->eta() << ", Phi = " << it->phi() << std::endl;
     fjGHSAlgoInlineJets.back().set_user_info(new fastjet::contrib::FlavHistory(0));
     // std::cout << "[DEBUG] GHS inline jet " << std::distance(jets->begin(), it) << " assigned flavour = 0." << std::endl;
-    fjGHSAlgoInlineJets.back().set_user_index(std::distance(jets->begin(), it));
+    fjGHSAlgoInlineJets.back().set_user_index(i);
     // std::cout << "[DEBUG] GHS inline jet " << std::distance(jets->begin(), it) << " assigned user index = " << fjGHSAlgoInlineJets.back().user_index() << std::endl;
   }
   for(size_t idx = 0; idx < fjInputs.size(); idx++){
