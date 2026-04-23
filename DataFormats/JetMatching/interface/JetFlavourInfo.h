@@ -32,9 +32,9 @@ namespace reco {
  */
   /// typedef for
   /// enumeration class for the fastjet::contrib flavour definition algorithms
-  enum class FlavAlgo { kCMP, kGHS, kIFN, kGHSFull, kGHSInlineParton};
+  enum class FlavAlgo { kCMP, kGHS, kIFN, kCount };
   // Number of fastjet::contrib flavour definition algorithms
-  constexpr size_t kAlgoFlavCount = 5;
+  constexpr size_t kAlgoFlavCount = static_cast<size_t>(FlavAlgo::kCount);
   constexpr size_t kAlgoArrayLen = 7;
 
   class JetFlavourInfo {
@@ -74,9 +74,9 @@ namespace reco {
     void setPartonFlavour(const int partonFlavour) { m_partonFlavour = partonFlavour; }
 
     /// view if flavour by some fastjet::contrib algorithm is defined
-    bool haveAlgoFlav(const FlavAlgo& algo) const { return !m_fjContribFlav[static_cast<size_t>(algo)].empty(); }
+    bool hasAlgoFlav(const FlavAlgo& algo) const { return !m_fjContribFlav[static_cast<size_t>(algo)].empty(); }
     /// the casting is important to ensure the algoNum is valid
-    bool haveAlgoFlav(const uint8_t& algoNum) const { return haveAlgoFlav(static_cast<FlavAlgo>(algoNum)); }
+    bool hasAlgoFlav(const uint8_t& algoNum) const { return hasAlgoFlav(static_cast<FlavAlgo>(algoNum)); }
     /// Set the flavour defined by some fastjet::contrib algorithm, on one digit, only if an array already exists.
     void setAlgoFlav(const FlavAlgo& algo, const fastjet::contrib::FlavInfo& fjFlavInfo) {
       m_fjContribFlav[static_cast<int>(algo)].assign(fjFlavInfo._flav_content,

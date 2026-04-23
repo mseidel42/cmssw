@@ -117,21 +117,10 @@ namespace pat {
     int partonFlavour() const;
     /// return the hadron-based flavour of the jet
     int hadronFlavour() const;
-    /// return the GHS algorithm-derived flavour of the jet, using full std::vector<int>
-    const std::vector<int>& algoFlav(const reco::FlavAlgo& algo) const;
-    const std::vector<int>& algoFlav(const uint8_t& algoNum) const;
-    /// return the GHS algorithm-derived flavour of the jet, using bitwise encoding (0 as N/A)
-    uint algoFlavCode(const reco::FlavAlgo& algo) const;
-    uint algoFlavCode(const uint8_t& algoNum) const;
-    /// return the heaviest GHS flavour component of the jet.
-    int8_t algoFlavLeading(const reco::FlavAlgo& algo) const;
-    int8_t algoFlavLeading(const uint8_t& algoNum) const;
-    /// check if result from some flavour algorithm has been set
-    bool haveAlgoFlav(const reco::FlavAlgo& algo) const;
-    bool haveAlgoFlav(const uint8_t& algoNum) const;
-    /// [DEBUG]
-    int ghsFlavour() const;
-    int ghsFullFlavour() const;
+    /// return the leading parton-level GHS flavour of the jet
+    int partonFlavourGHS() const;
+    /// return the parton-level GHS flavour of the jet using bitwise encoding (0 as N/A)
+    int partonFlavourGHSCode() const;
     /// return the JetFlavourInfo of the jet
     const reco::JetFlavourInfo& jetFlavourInfo() const;
 
