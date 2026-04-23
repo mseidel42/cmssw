@@ -664,25 +664,29 @@ void JetFlavourClustering::produce(edm::Event& iEvent, const edm::EventSetup& iS
   std::vector<fastjet::PseudoJet> fjGHSAlgoInlineFlavPartons;
   std::vector<fastjet::PseudoJet> fjGHSAlgoInlineJetResults;
   for(size_t i = 0; i < jets->size(); ++i) {
-    if (reclusteredIndices.at(i) < 0) continue;
-    fjGHSAlgoInlineJets.push_back(inclusiveJets.at(reclusteredIndices.at(i)));
+    if (reclusteredIndices.at(i) < 0) {
+      fjGHSAlgoInlineJets.push_back(fastjet::PseudoJet(jets->at(i).px(), jets->at(i).py(), jets->at(i).pz(), jets->at(i).energy()));
+    } else {
+      fjGHSAlgoInlineJets.push_back(inclusiveJets.at(reclusteredIndices.at(i)));
+    }
     fjGHSAlgoInlineJets.back().set_user_info(new fastjet::contrib::FlavHistory(0));
     fjGHSAlgoInlineJets.back().set_user_index(i);
   }
-  for(size_t idx = 0; idx < fjInputs.size(); idx++){
-    if(!fjInputs[idx].has_user_info()){
+  std::vector<fastjet::PseudoJet> csInputs(fjClusterSeq_->jets().begin(), fjClusterSeq_->jets().begin() + fjClusterSeq_->n_particles());
+  for(size_t idx = 0; idx < csInputs.size(); idx++){
+    if(!csInputs[idx].has_user_info()){
       continue; // not ghost
     }
-    if(fjInputs[idx].user_info<GhostInfo>().isParton() && isFinalParton(fjInputs[idx].user_info<GhostInfo>().particleRef())){
-      fastjet::PseudoJet partonPseudoJet = fjInputs[idx];
+    if(csInputs[idx].user_info<GhostInfo>().isParton() && isFinalParton(csInputs[idx].user_info<GhostInfo>().particleRef())){
+      fastjet::PseudoJet partonPseudoJet = csInputs[idx];
       partonPseudoJet /= ghostRescaling_; // restore the original momentum
-      partonPseudoJet.set_user_info(new fastjet::contrib::FlavHistory(fjInputs[idx].user_info<GhostInfo>().particleRef()->pdgId()));
+      partonPseudoJet.set_user_info(new fastjet::contrib::FlavHistory(csInputs[idx].user_info<GhostInfo>().particleRef()->pdgId()));
       // set user index with the jet association index already found
       partonPseudoJet.set_user_index(fjInputsMatchingIndices[idx]);
       fjGHSAlgoInlineFlavPartons.push_back(partonPseudoJet);
     }
-    else if(fjInputs[idx].user_info<GhostInfo>().isParton()){
-     //  std::cout << "[DEBUG] Identified non-final parton with pdgId = " << fjInputs[idx].user_info<GhostInfo>().particleRef()->pdgId() << " and Pt = " << fjInputs[idx].pt()/ghostRescaling_ << std::endl;
+    else if(csInputs[idx].user_info<GhostInfo>().isParton()){
+     //  std::cout << "[DEBUG] Identified non-final parton with pdgId = " << csInputs[idx].user_info<GhostInfo>().particleRef()->pdgId() << " and Pt = " << csInputs[idx].pt()/ghostRescaling_ << std::endl;
     }
   }
   // GHS Core is ready to use
