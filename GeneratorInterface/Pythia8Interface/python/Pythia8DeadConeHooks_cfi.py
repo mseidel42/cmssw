@@ -1,54 +1,125 @@
 # Pythia8DeadConeHooks_cfi.py
 #
-# Example configuration showing how to enable the b-quark dead-cone
-# modification user hooks (MassRestorationHook or MasslessBWeightHook)
-# in a CMS Pythia8 hadronizer job.
+# Example configuration showing how to switch off or soften the b-quark dead
+# cone when generating CMS samples with the Pythia8Interface, in particular
+# when showering Powheg (or other) LHE files that contain MASSIVE b quarks.
 #
-# The hooks are registered with the CustomHookFactory of the
-# GeneratorInterface/Pythia8Interface package and are attached to Pythia via
-# the "UserCustomization" parameter of the Pythia8HadronizerFilter /
-# Pythia8HepMC3HadronizerFilter EDFilter.
+# Three user hooks are provided (all registered with the CustomHookFactory of
+# the GeneratorInterface/Pythia8Interface package and attached via the
+# "UserCustomization" parameter of the Pythia8HadronizerFilter /
+# Pythia8HepMC3HadronizerFilter EDFilter):
 #
-# Two methods are provided:
-#   * MassRestorationHook : switch off the dead cone by running the shower
-#                           with a massless b ("5:m0 = 0.0") and restoring the b
-#                           mass just before hadronization.
-#   * MasslessBWeightHook  : soften the dead cone by reweighting trial
-#                           emissions inside the dead cone. The b is kept massive
-#                           in the shower. Requires the enhancement machinery to be
-#                           switched on:
-#                               Enhancements:doEnhanceTrial = on
-#                               Enhancements:overSampleFSR  = 10
+#   * MasslessLHEInputHook : runs at the process level (after the LHE is read,
+#                            before the shower) and makes every final-state b
+#                            quark from the LHE massless. For b quarks that come
+#                            from a resonance decay (e.g. t -> b W in a Powheg
+#                            LHE file with full spin-correlated top decays), the
+#                            hook rescales ALL the resonance daughters by a
+#                            common factor alpha in the resonance rest frame,
+#                            chosen so that (i) the b is massless and (ii) the
+#                            total energy of the daughters equals the resonance
+#                            mass. This preserves the resonance (top) mass
+#                            EXACTLY. For two-body t -> b W the formula reduces
+#                            to the standard two-body kinematics with m_b = 0.
+#                            For b quarks not from a resonance (e.g. b-initiated
+#                            hard processes, b from g -> bb in the ME), the
+#                            b's 3-momentum is preserved and its energy is set
+#                            to |p|.
 #
-# The b mass used by the hooks defaults to 4.8 GeV and can be overridden via the
-# "bMass" entry of the PSet.
+#                            This is needed because the Pythia setting
+#                                5:m0 = 0.0
+#                            only changes the *default* b mass used for
+#                            NEWLY CREATED b quarks (e.g. g -> bb in the
+#                            shower); it does NOT override the mass of b quarks
+#                            that are already in the event record from the
+#                            LHE.
 #
-# Usage: import this module (or copy the relevant blocks) into your generator
-# configuration and select which hook to attach by adjusting the
-# "UserCustomization" VPSet. Only one of the two methods should be enabled at a
-# time.
+#   * MassRestorationHook   : runs at the end of the parton level (after the
+#                            shower, before hadronization) and restores the
+#                            b mass to a configurable value (default 4.8 GeV,
+#                            the typical B-hadron mass) by finding the nearest
+#                            gluon color partner and putting the (b, g) pair on
+#                            their new mass shells while preserving the pair
+#                            3-momentum. If no kinematically allowed partner can
+#                            be found the event is vetoed and Pythia re-tries
+#                            the parton level.
+#
+#                            The Pythia setting "5:m0 = 0.0" must also be set
+#                            so the shower actually runs the b quarks as
+#                            massless.
+#
+#   * MasslessBWeightHook    : softens (rather than removes) the dead cone by
+#                            reweighting the trial emission probability so that
+#                            emissions inside the dead cone are enhanced. The b
+#                            is kept massive in the shower. The Pythia settings
+#                                Enhancements:doEnhanceTrial = on
+#                                Enhancements:overSampleFSR  = 10
+#                            must also be set so the over-sampling actually
+#                            generates the enhanced emissions.
+#
+# The b mass used by MassRestorationHook and MasslessBWeightHook is
+# configurable via the "bMass" entry of the UserCustomization PSet and defaults
+# to 4.8 GeV.
+#
+# -----------------------------------------------------------------------------
+# Recommended combinations for showering MASSIVE-LHE b quarks (e.g. Powheg LHE
+# files generated with bmass = 4.8):
+#
+#   * Option 6 -- massless b in shower, hadronization produces the B mass:
+#
+#       Pythia settings: 5:m0 = 0.0
+#       UserCustomization:
+#           pluginName = "MasslessLHEInputHook"
+#
+#   * Option 5 -- massless b in shower, mass explicitly restored before
+#                hadronization:
+#
+#       Pythia settings: 5:m0 = 0.0
+#       UserCustomization (both hooks):
+#           pluginName = "MasslessLHEInputHook"
+#           pluginName = "MassRestorationHook"
+#               bMass = 4.8
+#
+#   * Option 7 -- soften (do not remove) the dead cone by trial-probability
+#                reweighting, keeping the b massive:
+#
+#       Pythia settings: Enhancements:doEnhanceTrial = on
+#                        Enhancements:overSampleFSR  = 10
+#       UserCustomization:
+#           pluginName = "MasslessBWeightHook"
+#               bMass = 4.8
+#
+# -----------------------------------------------------------------------------
+# Note for showering MASSLESS-LHE b quarks (e.g. a 5FS Powheg LHE generated
+# with bmass = 0, or a Pythia-internal hard process):
+# In that case the LHE b quarks are already massless, so MasslessLHEInputHook
+# is a no-op and can be omitted. Just use "5:m0 = 0.0" for Options 5 and 6,
+# or the Enhancements:* settings for Option 7.
 
 import FWCore.ParameterSet.Config as cms
 
 # ---------------------------------------------------------------------------
-# Pythia8 settings blocks for the two dead-cone methods.
+# Pythia8 settings blocks for the three dead-cone methods.
 # ---------------------------------------------------------------------------
 
-# Settings common to both methods (use the CP5 tune as an example; replace
-# with the tune appropriate for your sample).
+# Settings common to all methods (CP5 tune as an example; replace with the
+# tune appropriate for your sample).
 from Configuration.Generator.Pythia8CommonSettings_cfi import *
 from Configuration.Generator.MCTunes2017.PythiaCP5Settings_cfi import *
 
-# Method 1: Mass Restoration.
-# The b is showered massless ("5:m0 = 0.0") and the MassRestorationHook
-# restores the b mass before hadronization.
+# Method 1 (Option 6): massless b in the shower. The B-hadron mass is then
+# produced by the string fragmentation. To be used together with the
+# MasslessLHEInputHook (for massive-LHE input).
 pythia8DeadConeMassRestorationSettings = cms.vstring(
     '5:m0 = 0.0',
 )
 
-# Method 2: Massless b reweighting.
-# The b keeps its mass in the shower; the trial emission probability is
-# reweighted to enhance emissions inside the dead cone. The enhancement
+# Method 2 (Option 5): same Pythia settings as Method 1, plus the
+# MassRestorationHook to explicitly restore the b mass before hadronization.
+# (Same settings block is reused.)
+
+# Method 3 (Option 7): soften the dead cone by reweighting the trial emission
+# probability. The b is kept massive in the shower. The enhancement
 # machinery must be switched on so the over-sampling actually produces the
 # enhanced emissions.
 pythia8DeadConeMasslessBWeightSettings = cms.vstring(
@@ -59,9 +130,9 @@ pythia8DeadConeMasslessBWeightSettings = cms.vstring(
 # ---------------------------------------------------------------------------
 # Example generator block (Pythia8HadronizerFilter).
 #
-# This is an example for an internal-Pythia8 ttbar sample. Adapt the
-# process, beam, energy, and tune to your needs. Pick the
-# "UserCustomization" entry that corresponds to the method you want to use.
+# This is an example for an internal-Pythia8 ttbar sample. Adapt the process,
+# beam, energy, and tune to your needs. Pick the "UserCustomization" entry
+# that corresponds to the method you want to use.
 # ---------------------------------------------------------------------------
 exampleDeadConeGenerator = cms.EDFilter("Pythia8HadronizerFilter",
     maxEventsToPrint = cms.untracked.int32(1),
@@ -83,22 +154,34 @@ exampleDeadConeGenerator = cms.EDFilter("Pythia8HadronizerFilter",
     ),
 
     # -------------------------------------------------------------------
-    # Pick ONE of the two UserCustomization blocks below.
+    # Pick ONE of the UserCustomization blocks below.
+    # Remember to also add the corresponding Pythia settings block
+    # (pythia8DeadConeMassRestorationSettings for Options 5/6,
+    #  pythia8DeadConeMasslessBWeightSettings for Option 7) to the
+    # parameterSets above.
     # -------------------------------------------------------------------
 
-    # Method 1: Mass Restoration. Remember to also add the
-    # pythia8DeadConeMassRestorationSettings block (containing '5:m0 = 0.0')
-    # to the parameterSets above so the shower runs with a massless b.
+    # Option 6: massless b in shower, B mass produced by hadronization.
     UserCustomization = cms.VPSet(
         cms.PSet(
-            pluginName = cms.string("MassRestorationHook"),
-            bMass = cms.double(4.8)
+            pluginName = cms.string("MasslessLHEInputHook")
         )
     ),
 
-    # Method 2: Massless b reweighting. Remember to also add the
-    # pythia8DeadConeMasslessBWeightSettings block (containing the
-    # Enhancements:* settings) to the parameterSets above.
+    # Option 5: massless b in shower + explicit mass restoration before
+    # hadronization. Both hooks must be attached.
+    # UserCustomization = cms.VPSet(
+    #     cms.PSet(
+    #         pluginName = cms.string("MasslessLHEInputHook")
+    #     ),
+    #     cms.PSet(
+    #         pluginName = cms.string("MassRestorationHook"),
+    #         bMass = cms.double(4.8)
+    #     )
+    # ),
+
+    # Option 7: soften the dead cone by trial-probability reweighting. The b
+    # is kept massive; MasslessLHEInputHook is NOT used here.
     # UserCustomization = cms.VPSet(
     #     cms.PSet(
     #         pluginName = cms.string("MasslessBWeightHook"),
