@@ -46,4 +46,12 @@
 <library file="JetMatchingEWK*.cc" name="GeneratorInterfacePythia8JetMatchingFxFxHook">
 </library>
 
+<library file="MassRestoration.cc,MasslessBWeight.cc" name="GeneratorInterfacePythia8DeadConeHooks">
+  <use name="FWCore/ParameterSet"/>
+  <use name="FWCore/PluginManager"/>
+  <use name="GeneratorInterface/Pythia8Interface"/>
+  <use name="pythia8"/>
+  <flags EDM_PLUGIN="1"/>
+</library>
+
 
