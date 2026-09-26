@@ -6,12 +6,26 @@
 // came from.
 //
 // Two cases are handled:
-//  (a) b from a resonance decay (e.g. t -> b W): The b's momentum is rescaled
-//      in the resonance rest frame, together with the other resonance
-//      daughters, by a common factor alpha chosen so that (i) the b is
-//      massless and (ii) the total energy equals the resonance mass. This
-//      preserves the resonance mass exactly. For a two-body t -> b W decay
-//      the formula reduces to the standard two-body kinematics with m_b = 0.
+//  (a) b from a resonance decay (e.g. t -> b W): All of the resonance's
+//      direct daughters are rescaled by a common factor alpha in the
+//      resonance rest frame, so that (i) every final-state b/bbar daughter
+//      becomes massless and (ii) the total energy of the daughters equals
+//      the resonance mass. This preserves the resonance mass exactly.
+//      Additionally, for every rescaled daughter that itself has descendants
+//      (e.g. the W from t -> b W), the daughter's 4-momentum change is
+//      propagated to ALL of the daughter's descendants (recursively)
+//      using the Lorentz boost that maps the daughter's original
+//      4-momentum to its new 4-momentum. This preserves momentum
+//      conservation at every level of the decay chain.
+//
+//      Without this descendant propagation, the resonance's resonance
+//      daughter (e.g. the W) would have a new 4-momentum that no longer
+//      equals the sum of its (unchanged) descendants' 4-momenta, breaking
+//      momentum conservation in the W decay. The broken kinematics can
+//      later produce NaN values in PDF/pT evaluations, which was the
+//      cause of the "Unphysical x given: -nan" error in the Powheg-matched
+//      shower.
+//
 //  (b) b that is not from a resonance decay (e.g. a b-initiated hard process
 //      outgoing parton, or b from g -> bb in the ME): The b's 3-momentum is
 //      preserved, its energy is set to |p|, and its stored mass is set to 0.
@@ -47,21 +61,35 @@ bool isResonanceId(int idAbs) {
 // resonance ancestor, or -1 if none found.
 int findResonanceAncestor(const Pythia8::Event& event, int iB) {
   int i = iB;
-  // Guard against cycles / running past the start of the event record.
   for (int step = 0; step < event.size() && i > 0; ++step) {
     int m1 = event[i].mother1();
     int m2 = event[i].mother2();
-    // Pick the first valid mother.
     int iMother = (m1 > 0) ? m1 : m2;
     if (iMother <= 0 || iMother >= event.size())
       break;
     if (isResonanceId(std::abs(event[iMother].id()))) {
-      // The b came from this resonance's decay.
       return iMother;
     }
     i = iMother;
   }
   return -1;
+}
+
+// Recursively apply a Lorentz transformation T to all descendants of
+// particle i (modifying their 4-momenta). T must be a Lorentz transformation,
+// so the "resonance = sum of descendants" relations are preserved at every
+// level of the decay tree.
+void transformDescendants(Pythia8::Event& event, int i,
+                           const Pythia8::RotBstMatrix& T) {
+  std::vector<int> daughters = event[i].daughterList();
+  for (int iD : daughters) {
+    if (iD <= 0 || iD >= event.size())
+      continue;
+    Pythia8::Vec4 p = event[iD].p();
+    p.rotbst(T);
+    event[iD].p(p);
+    transformDescendants(event, iD, T);
+  }
 }
 
 }  // namespace
@@ -77,12 +105,6 @@ bool MasslessLHEInputHook::doVetoProcessLevel(Pythia8::Event& event) {
   for (int i = 0; i < event.size(); ++i) {
     if (std::abs(event[i].id()) != 5 || !event[i].isFinal())
       continue;
-
-    // Skip incoming b quarks (e.g. 5FS b-initiated hard processes).
-    // Outgoing final-state b's have status > 0 (isFinal) and the typical
-    // LHE status codes for outgoing ME particles; incoming particles have
-    // negative status and are NOT isFinal. So the isFinal() check above
-    // already excludes incoming b's.
 
     int iRes = findResonanceAncestor(event, i);
     if (iRes < 0) {
@@ -113,31 +135,20 @@ bool MasslessLHEInputHook::doVetoProcessLevel(Pythia8::Event& event) {
     if (mRes <= 0.)
       continue;
 
-    // Collect the (direct) daughters of the resonance.
     std::vector<int> daughters = event[iRes].daughterList();
     if (daughters.empty())
       continue;
 
-    // For each daughter, get the 4-momentum in the resonance rest frame.
-    // Identify which daughter is the b we are processing (or a bbar).
-    // We rescale ALL daughters by alpha, making any final-state b massless.
     Pythia8::RotBstMatrix toRes;
     toRes.bstback(pRes);
 
-    // Compute the uniform scaling factor alpha by solving
-    //   f(alpha) = sum_over_daughters E_i'(alpha) - mRes = 0,
-    // where for b daughters E_i' = alpha * |p_i| (massless) and for other
-    // daughters E_i' = sqrt(alpha^2 * p_i^2 + m_i^2) (on-shell with original
-    // mass). f is monotonically increasing in alpha, so a unique root exists
-    // and can be found by bisection.
-    //
     // Pre-compute, per daughter, the 3-momentum magnitude and the mass, in
     // the resonance rest frame.
     struct DaughterKin {
       int idx;
       double pMag;  // 3-momentum magnitude in the resonance rest frame
-      double mass;  // original mass
-      bool isB;      // is this a b/bbar we want to make massless?
+      double mass;  // 0 for b's being massless-ized, original mass otherwise
+      bool isB;    // is this a b/bbar we want to make massless?
     };
     std::vector<DaughterKin> dks;
     for (int iD : daughters) {
@@ -148,19 +159,18 @@ bool MasslessLHEInputHook::doVetoProcessLevel(Pythia8::Event& event) {
       DaughterKin dk;
       dk.idx = iD;
       dk.pMag = pD.pAbs();
-      dk.mass = event[iD].m();
       dk.isB = (std::abs(event[iD].id()) == 5 && event[iD].isFinal());
-      if (dk.isB) {
-        // Will be made massless: energy becomes alpha * pMag.
-        // Note: mass is what we're going to set to 0; we use mass = 0 in f.
-        dk.mass = 0.0;
-      }
+      dk.mass = dk.isB ? 0.0 : event[iD].m();
       dks.push_back(dk);
     }
     if (dks.empty())
       continue;
 
-    // f(alpha) = sum_d E_d'(alpha) - mRes
+    // f(alpha) = sum_d E_d'(alpha) - mRes, where for b daughters
+    // E_d' = alpha * |p_d| (massless) and for other daughters
+    // E_d' = sqrt(alpha^2 * p_d^2 + m_d^2) (on-shell with original mass).
+    // f is monotonically increasing in alpha, so a unique root exists and
+    // can be found by bisection.
     auto totalEnergy = [&](double alpha) -> double {
       double E = 0.0;
       for (const auto& dk : dks) {
@@ -171,16 +181,10 @@ bool MasslessLHEInputHook::doVetoProcessLevel(Pythia8::Event& event) {
     };
     auto f = [&](double alpha) { return totalEnergy(alpha) - mRes; };
 
-    // Bisection: find alpha > 0 such that f(alpha) = 0.
-    // f is monotonically increasing. At alpha = 0, f = sum_d m_d - mRes (a
-    // large negative number). As alpha -> infinity, f -> +infinity. So a
-    // unique root exists. Start with a bracket and tighten.
     double aLo = 0.0, aHi = 1.0;
-    // Expand aHi until f(aHi) > 0.
     while (f(aHi) < 0.0 && aHi < 1e6) {
       aHi *= 2.0;
     }
-    // Bisect.
     for (int iter = 0; iter < 200; ++iter) {
       double mid = 0.5 * (aLo + aHi);
       if (f(mid) < 0.0)
@@ -202,25 +206,61 @@ bool MasslessLHEInputHook::doVetoProcessLevel(Pythia8::Event& event) {
 
     for (const auto& dk : dks) {
       int iD = dk.idx;
-      Pythia8::Vec4 pD = event[iD].p();
+
+      // Save the daughter's original lab-frame 4-momentum before rescaling.
+      Pythia8::Vec4 pDOrig = event[iD].p();
+
+      // Apply the rescaling in the resonance rest frame.
+      Pythia8::Vec4 pD = pDOrig;
       pD.rotbst(toRes);
       double oldMag = pD.pAbs();
       double newMass = dk.isB ? 0.0 : event[iD].m();
       if (oldMag > 0.0) {
-        // Scale the 3-momentum by alpha, keep the direction, and set the
-        // energy from the (new) on-shell mass.
-        double scale = alpha;  // 3-momentum scaling factor
-        pD.rescale3(scale);
+        pD.rescale3(alpha);
         double newPMag = alpha * oldMag;
         pD.e(std::sqrt(newPMag * newPMag + newMass * newMass));
       } else {
-        // Daughter at rest in the resonance rest frame: only energy changes.
         pD.e(newMass);
       }
       pD.rotbst(fromRes);
+
+      // Install the daughter's new 4-momentum.
       event[iD].p(pD);
       if (dk.isB) {
         event[iD].m(0.0);
+      }
+
+      // Propagate the daughter's 4-momentum change to ALL of its
+      // descendants (recursively). This is essential for kinematic
+      // consistency: when a daughter's 4-momentum changes (e.g. the W from
+      // t -> b W), the daughter's descendants' 4-momenta must also change
+      // so that the daughter still equals the sum of its descendants.
+      // Otherwise, the broken momentum conservation in the W decay produces
+      // NaN values in later PDF / pT evaluations in the Powheg-matched
+      // shower, manifesting as the "Unphysical x given: -nan" error.
+      //
+      // We use the Lorentz boost that maps the daughter's original
+      // 4-momentum to its new 4-momentum: T = bst(pDOrig, pDNew). Because T
+      // is a Lorentz transformation, applying T to every descendant (at
+      // every level of the decay tree, recursively) preserves every
+      // "resonance = sum of its descendants" relation.
+      //
+      // The boost formula requires pOrig^2 == pNew^2, i.e. the daughter's
+      // invariant mass must be preserved. This is true for non-b daughters
+      // (whose mass is preserved by the rescaling). For b daughters, the mass
+      // is changed to 0 -- but the b is a leaf of the decay tree at this
+      // point (it hadronizes later), so it has no descendants and the
+      // propagation is not needed for it.
+      if (alpha != 1.0) {
+        Pythia8::Vec4 pDNew = event[iD].p();
+        double m2Orig = pDOrig.m2Calc();
+        double m2New  = pDNew.m2Calc();
+        if (std::abs(m2Orig - m2New) <=
+            1e-9 * (m2Orig + m2New + 1.0)) {
+          Pythia8::RotBstMatrix T;
+          T.bst(pDOrig, pDNew);
+          transformDescendants(event, iD, T);
+        }
       }
     }
   }

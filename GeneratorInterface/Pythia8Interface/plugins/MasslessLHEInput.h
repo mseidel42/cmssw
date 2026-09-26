@@ -29,6 +29,20 @@
 // approach is a reasonable approximation that preserves the resonance mass
 // and the directions of all decay products.
 //
+// Descendant propagation:
+// When a resonance daughter is itself a resonance that has already been
+// decayed in the LHE (e.g. the W from t -> b W, with W -> l nu or
+// W -> q qbar already in the LHE), the daughter's 4-momentum change must
+// also be propagated to ALL of the daughter's descendants, otherwise
+// momentum conservation is broken inside the daughter's decay and the
+// Powheg-matched shower may produce NaN values in PDF/pT evaluations
+// (observed as the "Unphysical x given: -nan" runtime error). This is
+// done by applying the Lorentz boost T = bst(pDaughter_orig,
+// pDaughter_new) recursively to every descendant of the rescaled
+// daughter. Because T is a Lorentz transformation, it preserves the
+// "resonance = sum of its descendants" relation at every level of the
+// decay tree.
+//
 // For b quarks that are not from a resonance decay (e.g. b-initiated hard
 // processes in the 5FS, or b from g -> bb in the ME), the hook simply
 // preserves the 3-momentum, sets E = |p|, and sets the stored mass to 0.

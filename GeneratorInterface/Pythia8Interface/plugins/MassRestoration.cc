@@ -51,7 +51,7 @@ bool MassRestorationHook::doVetoPartonLevel(const Pythia8::Event& constEvent) {
           // 3-momentum magnitude of either parton in the pair CM frame
           // for the new (on-shell) masses.
           double pCM =
-              std::sqrt((s - Pythia8::pow2(mB + mP)) * (s - Pythia8::pow2(mB - mP)) / (2.0 * std::sqrt(s)));
+              std::sqrt((s - Pythia8::pow2(mB + mP)) * (s - Pythia8::pow2(mB - mP)) / (4.0 * s));
 
           Pythia8::RotBstMatrix rotBst;
           rotBst.toCMframe(pB, pP);
