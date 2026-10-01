@@ -1,6 +1,7 @@
 <use name="FWCore/Framework"/>
 <use name="FWCore/ServiceRegistry"/>
 <use name="SimDataFormats/GeneratorProducts"/>
+<use name="SimDataFormats/TruthInfo"/>
 <use name="DataFormats/Common"/>
 <use name="rivet"/>
 <use name="yoda"/>

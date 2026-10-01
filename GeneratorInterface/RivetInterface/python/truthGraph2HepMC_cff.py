@@ -1,0 +1,1 @@
+from GeneratorInterface.RivetInterface.truthGraph2HepMC_cfi import *
